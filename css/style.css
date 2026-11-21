@@ -1,0 +1,663 @@
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      background: #151f1e;
+      color: #fff7e7;
+      font:
+        15px system-ui,
+        sans-serif;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 5%;
+      border-bottom: 1px solid #ffffff20;
+    }
+    h1,
+    h2,
+    p {
+      margin: 0;
+    }
+    h1 {
+      font-size: 24px;
+    }
+    small {
+      color: #b4c6bd;
+    }
+    main {
+      max-width: 1450px;
+      margin: auto;
+      padding: 24px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 290px;
+      gap: 18px;
+    }
+    .panel {
+      background: #22312e;
+      border: 1px solid #ffffff15;
+      border-radius: 18px;
+      padding: 18px;
+    }
+    button,
+    input {
+      font: inherit;
+      border-radius: 9px;
+      border: 1px solid #ffffff25;
+      padding: 11px;
+      background: #162320;
+      color: inherit;
+    }
+    button {
+      cursor: pointer;
+      background: #f4cd79;
+      color: #332b19;
+      font-weight: 700;
+    }
+    button:hover {
+      filter: brightness(1.12);
+    }
+    canvas {
+      width: 100%;
+      display: block;
+      border-radius: 12px;
+      touch-action: none;
+      background: #a8c99a;
+    }
+    #chat {
+      height: 300px;
+      overflow: auto;
+      overflow-wrap: anywhere;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin: 16px 0;
+    }
+    #chat b {
+      color: #f4cd79;
+    }
+    #chat p {
+      font-size: 14px;
+    }
+    form {
+      display: flex;
+      gap: 6px;
+    }
+    form input {
+      min-width: 0;
+      flex: 1;
+    }
+    .bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .emotes {
+      display: flex;
+      gap: 7px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+    .emotes button {
+      background: #35483f;
+      color: white;
+      font-size: 20px;
+      padding: 7px 14px;
+    }
+    #join {
+      position: fixed;
+      inset: 0;
+      background: #101b19ee;
+      display: grid;
+      place-items: center;
+      z-index: 4;
+      padding: 20px;
+    }
+    #join .panel {
+      width: min(420px, 100%);
+      padding: 32px;
+      display: grid;
+      gap: 15px;
+    }
+    #join label {
+      display: grid;
+      gap: 6px;
+    }
+    #join input[type="color"] {
+      width: 100%;
+      height: 45px;
+    }
+    #status {
+      color: #f4cd79;
+    }
+    #players {
+      margin-top: 12px;
+      display: grid;
+      gap: 6px;
+      max-height: 180px;
+      overflow: auto;
+    }
+    footer {
+      padding: 0 24px 20px;
+      text-align: center;
+      color: #a9bcb2;
+    }
+    @media (max-width: 800px) {
+      main {
+        grid-template-columns: 1fr;
+        padding: 12px;
+      }
+      #chat {
+        height: 180px;
+      }
+    }
+    select {
+      font: inherit;
+      background: #162320;
+      color: inherit;
+      padding: 9px;
+      border-radius: 8px;
+    }
+    dialog {
+      color: #fff7e7;
+      background: #22312e;
+      border: 1px solid #ffffff30;
+      border-radius: 16px;
+      width: min(440px, 95vw);
+    }
+    dialog::backdrop {
+      background: #0009;
+    }
+    dialog label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 12px 0;
+    }
+    #furniture button {
+      font-size: 23px;
+      padding: 5px 9px;
+    }
+    #tools {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 12px 0;
+    }
+    #players button {
+      font-size: 12px;
+      padding: 4px 8px;
+    }
+
+
+/* ==================================
+   CANE'S THREADS CLOTHING SHOP
+   ================================== */
+
+.clothing-shop {
+  width: min(95vw, 1000px);
+  max-width: 1000px;
+  max-height: 90vh;
+  padding: 0;
+  border: 3px solid #8b6546;
+  border-radius: 16px;
+  background: #f8efd9;
+  color: #493829;
+  overflow: hidden;
+}
+
+.clothing-shop::backdrop {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.shop-layout {
+  display: grid;
+  grid-template-columns: 60% 40%;
+  min-height: 500px;
+  max-height: 85vh;
+}
+
+/* Dressing room */
+.shop-preview {
+  position: relative;
+  overflow: hidden;
+  background: #e9d5b3;
+}
+
+.shop-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.shop-title {
+  position: absolute;
+  top: 15px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 20px;
+  background: #714c38;
+  color: white;
+  border-radius: 12px;
+  font-size: 22px;
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+/* Clothing catalog */
+.shop-catalog {
+  padding: 22px;
+  overflow-y: auto;
+  background: #fff6e6;
+}
+
+.shop-catalog h2 {
+  margin: 0 0 15px;
+  color: #714c38;
+}
+
+
+#clothingItems {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(3, 1fr);
+  gap: 8px;
+  width: 100%;
+}
+
+#clothingItems .clothing-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-width: 0;
+  padding: 6px;
+}
+
+#clothingItems .clothing-item img {
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+}
+
+
+.clothing-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 2px solid #e0cba9;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.clothing-item img {
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+}
+
+.clothing-item-info {
+  flex: 1;
+}
+
+.clothing-item button,
+#closeClothingShop {
+  padding: 10px 14px;
+  border: none;
+  border-radius: 8px;
+  background: #8b6546;
+  color: white;
+  cursor: pointer;
+}
+
+.clothing-item button:hover,
+#closeClothingShop:hover {
+  background: #684630;
+}
+
+/* Smaller screens */
+@media (max-width: 700px) {
+  .shop-layout {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+
+  .shop-preview {
+    height: 300px;
+  }
+
+  .shop-catalog {
+    max-height: 450px;
+  }
+}
+/* Shop exit button */
+#exitShop:not([hidden]) {
+  position: fixed;
+  bottom: 25px;
+  left: 25px;
+  z-index: 100;
+  padding: 12px 20px;
+  background: #8b6546;
+  color: white;
+  border: 2px solid #fff;
+  border-radius: 12px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+#exitShop:hover {
+  background: #684630;
+}
+
+/* Cane's Threads — in-game clothing catalog */
+body.in-clothing-shop .shop-catalog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+
+  width: 340px;
+  height: 460px;
+
+  padding: 95px 28px 28px 28px;
+  overflow-y: auto;
+
+  background: url("/assets/ui/clothing-catalog.png") center center / 100% 100% no-repeat;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  z-index: 20;
+}
+
+/* Hide the catalog outside Cane's Threads */
+#dressingRoomCatalog {
+  display: none;
+}
+
+/* Show the catalog inside Cane's Threads */
+body.in-clothing-shop #dressingRoomCatalog {
+  display: block;
+}
+
+/* Apply custom artwork to the clothing catalog */
+body.in-clothing-shop #dressingRoomCatalog {
+
+  background-position: center;
+background-size: contain;
+  background-repeat: no-repeat;
+}
+
+/* Hide catalog controls outside Cane's Threads */
+#dressingRoomCatalog {
+  display: none;
+}
+
+/* Show clothing controls inside Cane's Threads */
+body.in-clothing-shop #dressingRoomCatalog {
+  display: block;
+  position: absolute;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  z-index: 20;
+}
+
+/* Hide duplicate controls from the old catalog */
+body.in-clothing-shop #dressingRoomCatalog > h2,
+body.in-clothing-shop #dressingRoomCatalog > p,
+body.in-clothing-shop #closeClothingShop {
+  display: none;
+}
+
+/* Keep the canvas and clothing catalog aligned */
+#gameCanvasWrapper {
+  position: relative;
+  width: 100%;
+  line-height: 0;
+}
+
+/* Keep the canvas responsive */
+#gameCanvasWrapper #world {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Position catalog controls over the artwork */
+body.in-clothing-shop #dressingRoomCatalog {
+  position: absolute;
+  top: 22%;
+  left: 47%;
+  width: 32%;
+  height: 66%;
+  transform: none;
+
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  overflow: hidden;
+  z-index: 10;
+
+  line-height: normal;
+}
+
+/* Keep clothing controls aligned with the game canvas */
+body.in-clothing-shop #gameCanvasWrapper #dressingRoomCatalog {
+  position: absolute;
+  top: 22%;
+  left: 47%;
+  width: 32%;
+  height: 66%;
+
+  /* Override old popup styling */
+  min-height: 0;
+  max-height: none;
+  min-width: 0;
+  transform: none;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* Cane's Threads — clean clothing slots */
+body.in-clothing-shop #clothingItems .clothing-item {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 2%;
+  min-width: 0;
+}
+
+/* Hide clothing names and ownership/price text */
+body.in-clothing-shop .clothing-item-info {
+  display: none;
+}
+
+/* Make thumbnails resize with their grid cells */
+body.in-clothing-shop #clothingItems .clothing-item img {
+  display: block;
+width: 95%;
+  height: auto;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+
+
+/* Fine-tune clothing grid positioning */
+
+
+
+body.in-clothing-shop #clothingItems {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: 0;
+  row-gap: 0;
+
+  /* Bring clothing thumbnails closer together */
+  width: 92%;
+
+  /* Move 1% to the right */
+transform: translate(2%, -5%);
+}
+
+
+
+
+/* Make clothing thumbnails slightly bigger */
+
+body.in-clothing-shop #clothingItems .clothing-item img {
+  display: block;
+  width: 115%;
+  height: auto;
+  max-width: none;
+  object-fit: contain;
+}
+
+
+/* Reduce spacing inside each clothing slot */
+body.in-clothing-shop #clothingItems .clothing-item {
+  padding: 0;
+  gap: 2px;
+}
+
+
+/* Hide original buttons inside Cane's Threads */
+
+/* Scale button text with the game canvas */
+#gameCanvasWrapper {
+  container-type: inline-size;
+}
+
+/* Custom Buy/Equip button text */
+body.in-clothing-shop #clothingItems .clothing-item button {
+  visibility: visible;
+  display: block;
+
+  background: transparent;
+  border: none;
+  box-shadow: none;
+
+  color: #ffffff;
+  font-size: 1.6cqw;
+  font-weight: bold;
+  text-align: center;
+
+  width: 100%;
+  padding: 0;
+  margin: 0;
+
+  cursor: pointer;
+}
+
+/* Prevent old hover backgrounds */
+body.in-clothing-shop #clothingItems .clothing-item button:hover {
+  background: transparent;
+}
+
+/* Adjust Buy/Equip text position */
+body.in-clothing-shop #clothingItems .clothing-item button {
+  
+/* CANE'S THREADS — BUTTON ALIGNMENT */
+
+/* Position labels relative to the catalog */
+body.in-clothing-shop #clothingItems,
+body.in-clothing-shop #clothingItems .clothing-item {
+  position: static;
+}
+
+body.in-clothing-shop #clothingItems .clothing-item button {
+  position: absolute;
+  left: var(--button-x);
+  top: var(--button-y);
+  transform: translate(-50%, -50%);
+
+  width: 19%;
+  height: 6.5%;
+  padding: 0;
+  margin: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: transparent;
+  border: none;
+  box-shadow: none;
+
+  color: white;
+  font-size: 1.6cqw;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+/* Row 1 */
+#clothingItems .clothing-item:nth-child(1) button {
+  --button-x: 17.2%;
+  --button-y: 28%;
+}
+
+#clothingItems .clothing-item:nth-child(2) button {
+  --button-x: 48.1%;
+  --button-y: 28.8%;
+}
+
+#clothingItems .clothing-item:nth-child(3) button {
+  --button-x: 78.4%;
+  --button-y: 29.3%;
+}
+
+/* Row 2 */
+#clothingItems .clothing-item:nth-child(4) button {
+  --button-x: 18.1%;
+  --button-y: 59.3%;
+}
+
+#clothingItems .clothing-item:nth-child(5) button {
+  --button-x: 49%;
+  --button-y: 60.1%;
+}
+
+#clothingItems .clothing-item:nth-child(6) button {
+  --button-x: 79.4%;
+  --button-y: 60.6%;
+}
+
+/* Row 3 */
+#clothingItems .clothing-item:nth-child(7) button {
+  --button-x: 17.5%;
+  --button-y: 90.2%;
+}
+
+#clothingItems .clothing-item:nth-child(8) button {
+  --button-x: 48.4%;
+  --button-y: 90.9%;
+}
+
+#clothingItems .clothing-item:nth-child(9) button {
+  --button-x: 78.8%;
+  --button-y: 91.4%;
+}
+
+  position: relative;
+
+  /* Adjust these values to align with your artwork */
+  left: 0;
+  top: 0;
+
+  font-size: 1.6cqw;
+}
+

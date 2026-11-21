@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cheese Plaza</title>
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <header>
+      <div>
+        <h1>🧀 Cheese Plaza</h1>
+        <small>A little place to hang out together.</small>
+      </div>
+      <span id="status">Not connected</span>
+    </header>
+    <main>
+      <section class="panel">
+        <div class="bar">
+          <div>
+            <h2 id="areaTitle">Town square</h2>
+            <small id="roomLabel">Room —</small>
+          </div>
+          <button id="invite">Copy invite link</button>
+        </div>
+        <div id="tools">
+          <button id="dress">Customize avatar</button
+          ><button id="myHome">My home</button><button id="town">Town</button
+          ><button id="decorate" hidden>Decorate home</button>
+        </div>
+        <div id="editor" hidden>
+          <p>
+            Choose furniture, then click the floor to place it. Use Remove to
+            delete the nearest item.
+          </p>
+          <div id="furniture" class="emotes"></div>
+          <label>Wall <input type="color" id="wall" /></label>
+          <label>Floor <input type="color" id="floor" /></label>
+          <button id="finish">Finish decorating</button>
+        </div>
+
+        <div id="gameCanvasWrapper">
+          <canvas id="world" width="1000" height="600"></canvas>
+
+          <div class="shop-catalog" id="dressingRoomCatalog">
+            <h2>Clothing Catalog</h2>
+            <p>Your Cheese: <strong id="shopCoins">200</strong> 🧀</p>
+
+            <div id="clothingItems"></div>
+
+            <button id="closeClothingShop" type="button">Leave Shop</button>
+          </div>
+        </div>
+
+        <div class="emotes" id="emotes"></div>
+
+        <p style="margin-top: 12px">
+          <small
+            >WASD / arrow keys to move · Click or tap the map to walk · Use
+            emojis to react</small
+          >
+        </p>
+      </section>
+      <aside class="panel">
+        <h2>Room chat</h2>
+        <div id="chat" aria-live="polite"></div>
+        <form id="chatForm">
+          <input
+            id="message"
+            maxlength="200"
+            placeholder="Say something…"
+            autocomplete="off"
+          /><button>Send</button>
+        </form>
+        <h2 style="margin-top: 25px; font-size: 17px">
+          Online friends <span id="count">0</span>
+        </h2>
+        <div id="players"></div>
+      </aside>
+    </main>
+    <footer>No scores, no timer. Just good company and cheese.</footer>
+    <div id="join">
+      <div class="panel">
+        <h1>Welcome to the plaza!</h1>
+        <p><small>Pick your look and join your friends.</small></p>
+        <label>Nickname<input id="name" maxlength="20" value="Guest" /></label
+        ><label>Room code<input id="room" maxlength="20" value="PLAZA" /></label
+        ><label
+          >Avatar color<input id="color" type="color" value="#e9ab76" /></label
+        ><button id="enter">Enter plaza</button><small id="error"></small>
+      </div>
+    </div>
+    <dialog id="closet">
+      <h2>Avatar closet</h2>
+      <label>Fur <input id="fur" type="color" /></label>
+      <label>
+        Outfit
+        <select id="shirt">
+          <option value="none">No outfit</option>
+          <option value="outfit1">Outfit 1</option>
+        </select>
+      </label>
+
+      <label>
+        Face
+        <select id="face">
+          <option value="face1">Face 1</option>
+          <option value="face2">Face 2</option>
+          <option value="face3">Face 3</option>
+          <option value="face4">Face 4</option>
+        </select>
+      </label>
+
+      <label
+        >Accessory
+        <select id="hat">
+          <option value="none">None</option>
+          <option>🎩</option>
+          <option>👑</option>
+          <option>🎀</option>
+          <option>🧢</option>
+          <option>🌸</option>
+        </select></label
+      ><canvas id="preview" width="200" height="110"></canvas
+      ><button id="saveStyle">Save look</button>
+      <button id="cancelStyle">Cancel</button>
+    </dialog>
+
+    <!-- Cane's Threads Clothing Shop -->
+    <dialog id="clothingShop" class="clothing-shop">
+      <div class="shop-layout">
+        <!-- Dressing room and NPC background -->
+        <div class="shop-preview">
+          <img
+            src="/assets/maps/shops/clothing-room.png"
+            alt="Cane's Threads dressing room"
+          />
+          <div class="shop-title">Cane's Threads</div>
+        </div>
+
+        <!-- Clothing catalog -->
+      </div>
+    </dialog>
+
+    <!-- Return to Shopping District -->
+    <button id="exitShop" type="button" hidden>🚪 Exit Shop</button>
+
+    <script src="js/game.js"></script>
+  </body>
+</html>

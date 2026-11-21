@@ -1,0 +1,1012 @@
+const playerDirections = new Map();
+
+// Character artwork
+const characterImage = new Image();
+characterImage.src = "/assets/characters/base.png";
+
+// Shopping District background
+const townImage = new Image();
+townImage.src = "/assets/maps/town.png";
+
+// Cane's Threads dressing room background
+const clothingRoomImage = new Image();
+clothingRoomImage.src = "/assets/maps/shops/clothing-room.png";
+// Clothing catalog artwork
+const clothingCatalogImg = new Image();
+clothingCatalogImg.src = "/assets/ui/clothing-catalog.png";
+// Custom Buy/Equip button artwork
+const clothingButtonsImg = new Image();
+clothingButtonsImg.src = "/assets/ui/clothing-buttons.png";
+// Cane's Threads NPC
+const clothingNPC = new Image();
+clothingNPC.src = "/assets/npcs/clothing-shopkeeper.png";
+
+// Clothing catalog data
+const clothingCatalog = [
+  {
+    id: "outfit1",
+    name: "Outfit 1",
+    price: 50,
+    image: "/assets/catalog/clothing/outfit1.png",
+  },
+  {
+    id: "outfit2",
+    name: "Outfit 2",
+    price: 75,
+    image: "/assets/catalog/clothing/outfit2.png",
+  },
+  {
+    id: "outfit3",
+    name: "Outfit 3",
+    price: 100,
+    image: "/assets/catalog/clothing/outfit3.png",
+  },
+];
+// Clothing catalog pagination
+let clothingPage = 0;
+const clothingItemsPerPage = 9;
+function renderClothingCatalog() {
+  const container = $("clothingItems");
+  container.innerHTML = "";
+
+  $("shopCoins").textContent = coins;
+
+  // Display only 9 clothing items per page
+  const startIndex = clothingPage * clothingItemsPerPage;
+  const pageItems = clothingCatalog.slice(
+    startIndex,
+    startIndex + clothingItemsPerPage,
+  );
+
+  pageItems.forEach((item) => {
+    const owned = ownedClothes.includes(item.id);
+
+    const card = document.createElement("div");
+    card.className = "clothing-item";
+
+    const image = document.createElement("img");
+    image.src = item.image;
+    image.alt = item.name;
+
+    const info = document.createElement("div");
+    info.className = "clothing-item-info";
+
+    const name = document.createElement("strong");
+    name.textContent = item.name;
+
+    const price = document.createElement("p");
+    price.textContent = owned ? "Owned" : `${item.price} Cheese`;
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = owned ? "Equip" : "Buy";
+
+    button.onclick = () => {
+      if (!ownedClothes.includes(item.id)) {
+        // Check whether the player has enough Cheese
+        if (coins < item.price) {
+          alert("You don't have enough Cheese!");
+          return;
+        }
+
+        // Purchase the outfit
+        coins -= item.price;
+        ownedClothes.push(item.id);
+
+        // Save purchases locally
+        localStorage.setItem("cheeseCoins", String(coins));
+        localStorage.setItem("ownedClothes", JSON.stringify(ownedClothes));
+
+        renderClothingCatalog();
+        return;
+      }
+
+      // Equip an owned outfit
+      saved.shirt = item.id;
+
+      persist();
+
+      // Update the multiplayer server
+      if (session) {
+        api("/style", {
+          color: saved.color,
+          shirt: item.id,
+          hat: saved.hat,
+          face: saved.face || "face1",
+        }).catch((error) => {
+          console.error("Failed to equip outfit:", error);
+        });
+      }
+
+      renderClothingCatalog();
+    };
+
+    info.append(name, price);
+    card.append(image, info, button);
+    container.appendChild(card);
+  });
+}
+
+// Shopping District building entrances
+const shopEntrances = [
+  {
+    id: "cafe",
+    name: "Cheese Café",
+    x: 79,
+    y: 352,
+    width: 156,
+    height: 111,
+  },
+  {
+    id: "furniture",
+    name: "Whiskers",
+    x: 529,
+    y: 339,
+    width: 64,
+    height: 129,
+  },
+  {
+    id: "clothing",
+    name: "Cane's Threads",
+    x: 683,
+    y: 332,
+    width: 71,
+    height: 121,
+  },
+];
+
+let nearbyShop = null;
+
+// Detect whether the player is at a shop entrance
+function checkShopEntrance() {
+  if (!me || area !== "town" || currentShop === "clothing") {
+    nearbyShop = null;
+    return;
+  }
+
+  const shop = shopEntrances.find((entrance) => {
+    return (
+      me.x >= entrance.x &&
+      me.x <= entrance.x + entrance.width &&
+      me.y >= entrance.y &&
+      me.y <= entrance.y + entrance.height
+    );
+  });
+
+  // Only trigger when entering a new doorway
+  if (shop && nearbyShop !== shop.id) {
+    nearbyShop = shop.id;
+
+    console.log(`You are at ${shop.name}!`);
+
+    if (shop.id === "clothing") {
+      keys.clear();
+      target = null;
+
+      // Switch to Cane's Threads
+      currentShop = "clothing";
+      document.body.classList.add("in-clothing-shop");
+      renderClothingCatalog();
+      const exitButton = document.getElementById("exitShop");
+
+      if (exitButton) {
+        exitButton.hidden = false;
+      } else {
+        console.error("Exit Shop button not found in HTML");
+      }
+    }
+  }
+
+  // Reset when leaving a doorway
+  if (!shop) {
+    nearbyShop = null;
+  }
+}
+
+// Load all available outfits
+const outfitImages = {};
+
+const availableOutfits = ["outfit1", "outfit2", "outfit3"];
+
+availableOutfits.forEach((outfit) => {
+  const image = new Image();
+  image.src = `/assets/clothing/${outfit}.png`;
+  outfitImages[outfit] = image;
+});
+
+// Custom face artwork
+const faceImages = {};
+
+const availableFaces = ["face1", "face2", "face3", "face4"];
+
+// Load all available faces
+availableFaces.forEach((face) => {
+  const img = new Image();
+  img.src = `/assets/characters/faces/${face}.png`;
+  faceImages[face] = img;
+});
+
+// Canvas used for fur recoloring
+const furCanvas = document.createElement("canvas");
+const furCtx = furCanvas.getContext("2d");
+
+// Recolor the base character directly
+function getColoredFur(color) {
+  if (!characterImage.complete || !characterImage.naturalWidth) {
+    return null;
+  }
+
+  furCanvas.width = characterImage.naturalWidth;
+  furCanvas.height = characterImage.naturalHeight;
+
+  // Draw the original grayscale character
+  furCtx.drawImage(characterImage, 0, 0);
+
+  // Apply color while preserving shading
+  furCtx.globalCompositeOperation = "multiply";
+  furCtx.fillStyle = color || "#ffffff";
+  furCtx.fillRect(0, 0, furCanvas.width, furCanvas.height);
+
+  // Restore original transparency
+  furCtx.globalCompositeOperation = "destination-in";
+  furCtx.drawImage(characterImage, 0, 0);
+
+  furCtx.globalCompositeOperation = "source-over";
+
+  return furCanvas;
+}
+
+const $ = (id) => document.getElementById(id),
+  canvas = $("world"),
+  ctx = canvas.getContext("2d");
+let session = null,
+  players = [],
+  me = null,
+  keys = new Set(),
+  target = null,
+  lastSend = 0,
+  stream;
+let area = "town",
+  editing = false,
+  selected = "🛋️";
+const furniture = [
+  "🛋️",
+  "🛏️",
+  "🪴",
+  "📺",
+  "🪑",
+  "🪞",
+  "🧸",
+  "🖼️",
+  "💡",
+  "📚",
+  "🧀",
+];
+let saved = {};
+try {
+  saved = JSON.parse(localStorage.getItem("cheeseProfile") || "{}");
+} catch {}
+let layout = saved.home || { wall: "#e8c9a7", floor: "#b88c64", items: [] };
+function persist() {
+  try {
+    localStorage.setItem("cheeseProfile", JSON.stringify(saved));
+  } catch {}
+}
+const q = new URLSearchParams(location.search);
+$("room").value = q.get("room") || "PLAZA";
+$("name").value = saved.name || "Guest";
+$("color").value = saved.color || "#e9ab76";
+async function api(path, data = {}) {
+  const res = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...session, ...data }),
+  });
+  const out = await res.json();
+  if (!res.ok) throw Error(out.error);
+  return out;
+}
+$("enter").onclick = async () => {
+  try {
+    session = await api("/join", {
+      name: $("name").value,
+      room: $("room").value,
+      color: $("color").value,
+      hat: saved.hat,
+      face: saved.face || "face1",
+      shirt: saved.shirt,
+      home: layout,
+    });
+    saved.name = $("name").value;
+    saved.color = $("color").value;
+    persist();
+    $("join").style.display = "none";
+    $("roomLabel").textContent = "Room: " + session.room;
+    stream = new EventSource("/events?" + new URLSearchParams(session));
+    stream.onopen = () => {
+      $("status").textContent = "● Connected";
+    };
+    stream.onerror = () => {
+      $("status").textContent = "Reconnecting…";
+    };
+    stream.onmessage = (e) => {
+      const d = JSON.parse(e.data);
+      players = d.players;
+      const p = players.find((p) => p.id === session.id);
+      if (!me && p) me = { ...p };
+      if (!p) {
+        stream.close();
+        location.reload();
+        return;
+      }
+      $("count").textContent = players.length;
+      const list = $("players");
+      list.replaceChildren();
+      for (const p of players) {
+        const el = document.createElement("div");
+        el.textContent = "● " + p.name + (p.id === session.id ? " (you)" : "");
+        el.style.color = p.color;
+        if (p.id !== session.id) {
+          const visit = document.createElement("button");
+          visit.textContent = "Visit home";
+          visit.onclick = () => go(p.id);
+          el.append(" ", visit);
+        }
+        list.append(el);
+      }
+      const chat = $("chat");
+      const sig = JSON.stringify(d.chat);
+      if (chat.dataset.sig !== sig) {
+        chat.dataset.sig = sig;
+        chat.replaceChildren();
+        for (const m of d.chat) {
+          const el = document.createElement("p"),
+            b = document.createElement("b");
+          b.textContent = m.name + ": ";
+          el.append(b, document.createTextNode(m.text));
+          chat.append(el);
+        }
+        chat.scrollTop = chat.scrollHeight;
+      }
+    };
+  } catch (e) {
+    $("error").textContent = e.message;
+  }
+};
+$("invite").onclick = async () => {
+  if (!session) return;
+  const url = new URL(location.href);
+  url.searchParams.set("room", session.room);
+  try {
+    await navigator.clipboard.writeText(url.href);
+    $("invite").textContent = "Link copied!";
+  } catch {
+    prompt("Copy this invite link:", url.href);
+  }
+};
+$("chatForm").onsubmit = (e) => {
+  e.preventDefault();
+  const text = $("message").value.trim();
+  if (text && session) {
+    api("/chat", { text }).catch(() => {});
+    $("message").value = "";
+  }
+};
+for (const emote of ["👋", "❤️", "😂", "🎉", "🧀"]) {
+  const b = document.createElement("button");
+  b.textContent = emote;
+  b.onclick = () => session && api("/emote", { emote }).catch(() => {});
+  $("emotes").append(b);
+}
+window.addEventListener("keydown", (e) => {
+  if (
+    editing ||
+    $("closet").open ||
+    ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName)
+  )
+    return;
+  const k = e.key.toLowerCase();
+  if (
+    [
+      "w",
+      "a",
+      "s",
+      "d",
+      "arrowup",
+      "arrowdown",
+      "arrowleft",
+      "arrowright",
+    ].includes(k)
+  ) {
+    e.preventDefault();
+    keys.add(k);
+    target = null;
+  }
+});
+window.addEventListener("keyup", (e) => keys.delete(e.key.toLowerCase()));
+window.addEventListener("blur", () => keys.clear());
+canvas.onclick = (e) => {
+  const r = canvas.getBoundingClientRect();
+  const x = ((e.clientX - r.left) * 1000) / r.width,
+    y = ((e.clientY - r.top) * 600) / r.height;
+  if (editing) {
+    if (selected === "remove") {
+      let best = -1,
+        dist = 55;
+      layout.items.forEach((i, n) => {
+        const d = Math.hypot(i.x - x, i.y - y);
+        if (d < dist) {
+          dist = d;
+          best = n;
+        }
+      });
+      if (best >= 0) layout.items.splice(best, 1);
+    } else if (y >= 160 && layout.items.length < 30)
+      layout.items.push({ type: selected, x, y });
+    saveHome();
+    return;
+  }
+  target = { x, y };
+};
+setInterval(() => session && api("/ping").catch(() => {}), 12000);
+window.addEventListener("pagehide", () => {
+  if (session) navigator.sendBeacon("/leave", JSON.stringify(session));
+});
+function rect(x, y, w, h, c, r = 12) {
+  ctx.fillStyle = c;
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, r);
+  ctx.fill();
+}
+function circle(x, y, r, c) {
+  ctx.fillStyle = c;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+}
+function label(t, x, y, c = "#334637", size = 17) {
+  ctx.font = `bold ${size}px system-ui`;
+  ctx.textAlign = "center";
+  ctx.fillStyle = c;
+  ctx.fillText(t, x, y);
+}
+function tree(x, y) {
+  rect(x - 6, y, 12, 30, "#785a40");
+  circle(x, y - 5, 28, "#608e59");
+  circle(x - 12, y - 14, 20, "#7aa66b");
+  circle(x + 12, y - 14, 20, "#719d61");
+}
+function building(x, y, w, h, name, emoji) {
+  rect(x + 5, y + 8, w, h, "#76916c");
+  rect(x, y, w, h, "#f5dfb2");
+  rect(x - 8, y - 8, w + 16, 35, "#b97759");
+  label(name, x + w / 2, y + 16, "#fff4da");
+  rect(x + w / 2 - 22, y + h - 42, 44, 42, "#80604b");
+  label(emoji, x + w / 2, y + 62, "#554432", 32);
+}
+
+function world() {
+  // Display Cane's Threads dressing room
+  if (currentShop === "clothing") {
+    // 1. Draw dressing-room background
+    if (clothingRoomImage.complete && clothingRoomImage.naturalWidth > 0) {
+      ctx.drawImage(clothingRoomImage, 0, 0, 1000, 600);
+    }
+
+    // 2. Draw clothing catalog
+    if (clothingCatalogImg.complete && clothingCatalogImg.naturalWidth > 0) {
+      // Draw catalog at its original dimensions
+      ctx.drawImage(clothingCatalogImg, 0, 0);
+    }
+
+    // Draw custom Buy/Equip button artwork
+    if (clothingButtonsImg.complete && clothingButtonsImg.naturalWidth > 0) {
+      ctx.drawImage(clothingButtonsImg, 0, 0);
+    }
+
+    // 3. Draw shopkeeper over the catalog
+    if (clothingNPC.complete && clothingNPC.naturalWidth > 0) {
+      ctx.drawImage(clothingNPC, 0, 0, 1000, 600);
+    }
+
+    // Display Cheese balance in the top-right corner
+    const cheeseBalance =
+      document.getElementById("shopCoins")?.textContent ?? "0";
+
+    ctx.save();
+
+    // Currency display background
+    ctx.fillStyle = "rgba(40, 35, 30, 0.85)";
+    ctx.beginPath();
+    ctx.roundRect(840, 20, 140, 50, 12);
+    ctx.fill();
+
+    // Currency text
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 24px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(`🧀 ${cheeseBalance}`, 910, 45);
+
+    ctx.restore();
+
+    return;
+  }
+
+  // Display Shopping District
+  if (townImage.complete && townImage.naturalWidth > 0) {
+    ctx.drawImage(townImage, 0, 0, 1000, 600);
+  }
+}
+
+function drawHome(h) {
+  rect(0, 0, 1000, 600, h.floor, 0);
+  rect(0, 0, 1000, 150, h.wall, 0);
+  rect(0, 145, 1000, 10, "#80684d", 0);
+  for (let y = 175; y < 600; y += 55) {
+    ctx.strokeStyle = "#00000012";
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(1000, y);
+    ctx.stroke();
+  }
+  rect(90, 25, 115, 90, "#fff3d7");
+  rect(98, 33, 99, 74, "#a6dbea");
+  rect(145, 33, 5, 74, "#fff3d7", 0);
+  rect(98, 68, 99, 5, "#fff3d7", 0);
+  for (const i of [...h.items].sort((a, b) => a.y - b.y)) {
+    label(i.type, i.x, i.y + 15, "#fff", 52);
+  }
+}
+async function go(a) {
+  if (!session) return;
+  try {
+    await api("/area", { area: a });
+    area = a;
+    editing = false;
+    $("editor").hidden = true;
+    $("decorate").hidden = a !== session.id;
+    target = null;
+    keys.clear();
+    if (me) {
+      me.x = 500;
+      me.y = 350;
+    }
+    $("areaTitle").textContent =
+      a === "town"
+        ? "Town square"
+        : a === session.id
+          ? "My home"
+          : (players.find((p) => p.id === a)?.name || "Friend") + "’s home";
+  } catch (e) {
+    $("status").textContent = e.message;
+  }
+}
+function saveHome() {
+  saved.home = layout;
+  persist();
+  api("/home", { home: layout }).catch(
+    (e) => ($("status").textContent = e.message),
+  );
+}
+$("myHome").onclick = () => go(session?.id);
+$("town").onclick = () => go("town");
+$("decorate").onclick = () => {
+  editing = true;
+  keys.clear();
+  target = null;
+  $("editor").hidden = false;
+  $("wall").value = layout.wall;
+  $("floor").value = layout.floor;
+};
+$("finish").onclick = () => {
+  editing = false;
+  $("editor").hidden = true;
+};
+for (const type of [...furniture, "remove"]) {
+  const b = document.createElement("button");
+  b.textContent = type === "remove" ? "Remove" : type;
+  b.onclick = () => {
+    selected = type;
+    for (const el of $("furniture").children) el.style.outline = "";
+    b.style.outline = "2px solid #f4cd79";
+  };
+  $("furniture").append(b);
+}
+$("wall").oninput = () => {
+  layout.wall = $("wall").value;
+  saveHome();
+};
+$("floor").oninput = () => {
+  layout.floor = $("floor").value;
+  saveHome();
+};
+$("face").addEventListener("change", preview);
+function preview() {
+  const c = $("preview").getContext("2d");
+
+  // Clear previous preview
+  c.clearRect(0, 0, 200, 110);
+
+  const width = 96;
+  const height = 96;
+  const x = 100 - width / 2;
+  const y = 7;
+
+  // Draw base character
+  if (characterImage.complete && characterImage.naturalWidth > 0) {
+    // Preview customized fur color
+    const coloredFur = getColoredFur($("fur").value);
+
+    if (coloredFur) {
+      c.drawImage(coloredFur, x, y, width, height);
+    }
+  }
+
+  // Preview the selected outfit
+  const previewOutfit = outfitImages[$("shirt").value];
+
+  if (
+    previewOutfit &&
+    previewOutfit.complete &&
+    previewOutfit.naturalWidth > 0
+  ) {
+    c.drawImage(previewOutfit, x, y, width, height);
+  }
+
+  // Preview selected face
+  const faceImage = faceImages[$("face").value];
+
+  if (faceImage && faceImage.complete && faceImage.naturalWidth > 0) {
+    c.drawImage(faceImage, x, y, width, height);
+  }
+
+  // Draw selected accessory
+  c.font = "27px system-ui";
+  c.textAlign = "center";
+
+  if ($("hat").value !== "none") {
+    c.fillText($("hat").value, 100, 34);
+  }
+}
+{
+  const c = $("preview").getContext("2d");
+  c.clearRect(0, 0, 200, 110);
+  c.fillStyle = $("shirt").value;
+  c.beginPath();
+  c.ellipse(100, 77, 25, 25, 0, 0, Math.PI * 2);
+  c.fill();
+  c.fillStyle = $("fur").value;
+  for (const [x, y, r] of [
+    [80, 38, 13],
+    [120, 38, 13],
+    [100, 55, 25],
+  ]) {
+    c.beginPath();
+    c.arc(x, y, r, 0, Math.PI * 2);
+    c.fill();
+  }
+  c.fillStyle = "#232323";
+  for (const x of [92, 108]) {
+    c.beginPath();
+    c.arc(x, 53, 3, 0, Math.PI * 2);
+    c.fill();
+  }
+  c.font = "27px system-ui";
+  c.textAlign = "center";
+  c.fillText($("hat").value === "none" ? "" : $("hat").value, 100, 34);
+}
+$("dress").onclick = () => {
+  if (!session) return;
+  $("fur").value = saved.color || "#e9ab76";
+  $("shirt").value = saved.shirt || "none";
+  $("hat").value = saved.hat || "none";
+  $("face").value = saved.face || "face1";
+
+  keys.clear();
+  target = null;
+  $("closet").showModal();
+  preview();
+};
+
+// Leave Cane's Threads
+$("closeClothingShop").onclick = () => {
+  $("clothingShop").close();
+
+  currentShop = null;
+  keys.clear();
+  target = null;
+};
+
+// Keep shop state synchronized if closed with Escape
+$("clothingShop").addEventListener("close", () => {
+  currentShop = null;
+  keys.clear();
+  target = null;
+});
+
+for (const id of ["fur", "shirt", "hat"]) $(id).oninput = preview;
+$("cancelStyle").onclick = () => $("closet").close();
+$("saveStyle").onclick = async () => {
+  const data = {
+    color: $("fur").value,
+    shirt: $("shirt").value,
+    hat: $("hat").value,
+    face: $("face").value,
+  };
+
+  try {
+    await api("/style", data);
+    Object.assign(saved, data);
+    persist();
+    $("closet").close();
+  } catch (e) {
+    $("status").textContent = e.message;
+  }
+};
+
+function avatar(p) {
+  const width = 64;
+  const height = 64;
+
+  // Track walking direction
+  const previous = playerDirections.get(p.id) || {
+    x: p.x,
+    facingRight: false,
+  };
+
+  if (p.x > previous.x) {
+    previous.facingRight = true;
+  } else if (p.x < previous.x) {
+    previous.facingRight = false;
+  }
+
+  // Detect player movement
+  const now = performance.now();
+
+  if (p.x !== previous.x || (previous.y !== undefined && p.y !== previous.y)) {
+    previous.lastMove = now;
+    $("exitShop").onclick = () => {
+      document.body.classList.remove("in-clothing-shop");
+      // Return to Shopping District
+      currentShop = null;
+
+      // Prevent immediately reopening the shop
+      nearbyShop = "clothing";
+
+      // Move the player away from the doorway
+      if (me) {
+        me.x = 800;
+        me.y = 500;
+        me.dirty = true;
+      }
+
+      // Hide exit button
+      $("exitShop").hidden = true;
+
+      // Stop movement
+      keys.clear();
+      target = null;
+
+      console.log("Returned to Shopping District");
+    };
+  }
+
+  previous.x = p.x;
+  previous.y = p.y;
+
+  // Check whether the character is walking
+
+  const isMoving =
+    currentShop !== "clothing" && now - (previous.lastMove ?? -Infinity) < 150;
+
+  playerDirections.set(p.id, previous);
+
+  // Hopping animation settings
+  const hopHeight = 7;
+  const hopSpeed = 5;
+  const squashAmount = 0.1;
+
+  // Calculate hopping animation
+  const phase = ((now / 1000) * hopSpeed) % 1;
+
+  const hop = isMoving ? 4 * phase * (1 - phase) * hopHeight : 0;
+
+  const squash = isMoving
+    ? Math.pow(Math.abs(2 * phase - 1), 12) * squashAmount
+    : 0;
+
+  // Dynamic hopping shadow
+  const airProgress = Math.min(1, hop / Math.max(1, hopHeight));
+
+  ctx.save();
+  ctx.globalAlpha = 0.18 - airProgress * 0.08;
+  ctx.fillStyle = "#000";
+  ctx.beginPath();
+
+  ctx.ellipse(
+    p.x,
+    p.y + 18,
+    24 - airProgress * 6,
+    7 - airProgress * 2,
+    0,
+    0,
+    Math.PI * 2,
+  );
+
+  ctx.fill();
+  ctx.restore();
+
+  // Draw character artwork
+  if (characterImage.complete && characterImage.naturalWidth > 0) {
+    ctx.save();
+
+    ctx.translate(p.x, p.y);
+
+    // Apply hopping animation
+    ctx.translate(0, 20 - hop);
+
+    // Squash and stretch when landing
+    ctx.scale(1 + squash * 0.65, 1 - squash);
+
+    // Keep the animation anchored to the feet
+    ctx.translate(0, -20);
+
+    // Always face right inside Cane's Threads
+    const facingRight =
+      currentShop === "clothing" ? true : previous.facingRight;
+
+    if (facingRight) {
+      ctx.scale(-1, 1);
+    }
+
+    // Draw customized fur color
+    const coloredFur = getColoredFur(p.color);
+
+    if (coloredFur) {
+      ctx.drawImage(coloredFur, -width / 2, -height + 20, width, height);
+    }
+
+    // Draw clothing layer
+
+    // Draw the player's equipped clothing
+    const equippedOutfit = outfitImages[p.shirt];
+
+    if (
+      equippedOutfit &&
+      equippedOutfit.complete &&
+      equippedOutfit.naturalWidth > 0
+    ) {
+      ctx.drawImage(equippedOutfit, -width / 2, -height + 20, width, height);
+    }
+
+    // Draw face layer
+    const faceImage = faceImages[p.face || "face1"];
+
+    if (faceImage && faceImage.complete && faceImage.naturalWidth > 0) {
+      ctx.drawImage(faceImage, -width / 2, -height + 20, width, height);
+    }
+
+    ctx.restore();
+  }
+
+  // Draw accessory
+  if (p.hat && p.hat !== "none") {
+    label(p.hat, p.x, p.y - 35, "#fff", 25);
+  }
+
+  // Hide player name tag inside Cane's Threads
+  if (currentShop !== "clothing") {
+    label(p.name, p.x, p.y - height, "#28382c", 14);
+  }
+
+  // Draw player reactions
+  if (p.emote) {
+    label(p.emote, p.x, p.y - height - 20, "#fff", 25);
+  }
+}
+
+let prev = performance.now();
+function tick(t) {
+  const dt = Math.min((t - prev) / 1000, 0.05);
+  prev = t;
+
+  checkShopEntrance();
+
+  if (me && currentShop !== "clothing") {
+    let dx =
+        Number(keys.has("d") || keys.has("arrowright")) -
+        Number(keys.has("a") || keys.has("arrowleft")),
+      dy =
+        Number(keys.has("s") || keys.has("arrowdown")) -
+        Number(keys.has("w") || keys.has("arrowup"));
+    if (target && !dx && !dy) {
+      dx = target.x - me.x;
+      dy = target.y - me.y;
+      if (Math.hypot(dx, dy) < 5) {
+        target = null;
+        dx = dy = 0;
+      }
+    }
+    const len = Math.hypot(dx, dy);
+    if (len) {
+      me.x = Math.max(25, Math.min(975, me.x + (dx / len) * 170 * dt));
+      me.y = Math.max(25, Math.min(575, me.y + (dy / len) * 170 * dt));
+    }
+    if (t - lastSend > 85 && (len || me.dirty)) {
+      lastSend = t;
+      api("/move", { x: me.x, y: me.y }).catch(() => {});
+      me.dirty = !!len;
+    } else if (len) me.dirty = true;
+  }
+  if (area === "town") world();
+  else {
+    const owner = players.find((p) => p.id === area);
+    if (!owner && area !== session?.id) {
+      go("town");
+      world();
+    } else drawHome(area === session?.id ? layout : owner.home);
+  }
+
+  // Draw players normally in the Shopping District
+  if (currentShop !== "clothing") {
+    for (const p of [...players]
+      .filter((p) => p.area === area)
+      .sort((a, b) => a.y - b.y)) {
+      avatar(p.id === session?.id && me ? { ...p, x: me.x, y: me.y } : p);
+    }
+  }
+
+  // Draw enlarged, stationary player inside Cane's Threads
+  if (currentShop === "clothing" && me && session) {
+    ctx.save();
+
+    // Move player slightly left and up
+    ctx.translate(220, 420);
+
+    const shopScale = 400 / 64;
+    ctx.scale(shopScale, shopScale);
+
+    // Force character to face right
+    const direction = playerDirections.get(session.id) || {
+      x: me.x,
+      facingRight: true,
+    };
+
+    direction.facingRight = true;
+    direction.x = me.x;
+    playerDirections.set(session.id, direction);
+
+    // Draw character
+    avatar({
+      ...me,
+      ...saved,
+      id: session.id,
+      x: 0,
+      y: 0,
+    });
+
+    ctx.restore();
+  }
+
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+
+let coins = Number(localStorage.getItem("cheeseCoins") ?? 200);
+
+let ownedClothes;
+
+try {
+  ownedClothes = JSON.parse(
+    localStorage.getItem("ownedClothes") ?? '["outfit1"]',
+  );
+
+  if (!Array.isArray(ownedClothes)) {
+    ownedClothes = ["outfit1"];
+  }
+} catch {
+  ownedClothes = ["outfit1"];
+}
+
+let currentShop = null;
