@@ -21,7 +21,22 @@ function style(b) {
   return {
     hat: valid(b.hat, ["none", "🎩", "👑", "🎀", "🧢", "🌸"], "none"),
 
-    shirt: valid(b.shirt, ["none", "outfit1", "outfit2", "outfit3"], "none"),
+    shirt: valid(
+      b.shirt,
+      [
+        "none",
+        "outfit1",
+        "outfit2",
+        "outfit3",
+        "outfit4",
+        "outfit5",
+        "outfit6",
+        "outfit7",
+        "outfit8",
+        "outfit9",
+      ],
+      "none",
+    ),
 
     face: valid(b.face, ["face1", "face2", "face3", "face4"], "face1"),
   };
@@ -168,6 +183,8 @@ const server = http.createServer(async (req, res) => {
     }
     const b = JSON.parse(raw);
     if (u.pathname === "/join") {
+      console.log("Player joining with outfit:", b.shirt);
+      console.log("Server accepted outfit:", style(b).shirt);
       const room =
         String(b.room || "PLAZA")
           .toUpperCase()

@@ -252,7 +252,17 @@ function checkShopEntrance() {
 // Load all available outfits
 const outfitImages = {};
 
-const availableOutfits = ["outfit1", "outfit2", "outfit3"];
+const availableOutfits = [
+  "outfit1",
+  "outfit2",
+  "outfit3",
+  "outfit4",
+  "outfit5",
+  "outfit6",
+  "outfit7",
+  "outfit8",
+  "outfit9",
+];
 
 availableOutfits.forEach((outfit) => {
   const image = new Image();
