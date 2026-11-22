@@ -56,7 +56,7 @@ function send(res, obj, status = 200) {
 function broadcast(r) {
   const data = JSON.stringify({
     players: [...r.players.values()].map(
-      ({ id, name, color, x, y, emote, hat, shirt, face, home, area }) => ({
+      ({
         id,
         name,
         color,
@@ -68,6 +68,20 @@ function broadcast(r) {
         face,
         home,
         area,
+        bio,
+      }) => ({
+        id,
+        name,
+        color,
+        x,
+        y,
+        emote,
+        hat,
+        shirt,
+        face,
+        home,
+        area,
+        bio,
       }),
     ),
     chat: r.chat,
@@ -175,8 +189,9 @@ const server = http.createServer(async (req, res) => {
             .trim()
             .slice(0, 20) || "Guest",
         color,
-        x: 490 + Math.random() * 100,
-        y: 300 + Math.random() * 80,
+        // Initial spawn at the bottom-center of the Shopping District
+        x: 500,
+        y: 520,
         last: Date.now(),
         emote: "",
         ...style(b),
@@ -195,17 +210,29 @@ const server = http.createServer(async (req, res) => {
         p.x = Math.max(25, Math.min(975, b.x));
         p.y = Math.max(25, Math.min(575, b.y));
       }
-    } else if (u.pathname === "/style") {
-      Object.assign(p, style(b));
-      p.color = color(b.color, p.color);
-    } else if (u.pathname === "/home") {
-      p.home = home(b.home);
     } else if (u.pathname === "/area") {
       if (b.area === "town" || r.players.has(b.area)) {
         p.area = b.area;
-        p.x = 500;
-        p.y = 350;
+
+        if (b.area === "town") {
+          // Shopping District spawn point
+          p.x = 500;
+          p.y = 575;
+        } else {
+          // Home spawn point
+          p.x = 500;
+          p.y = 350;
+        }
       }
+    } else if (u.pathname === "/style") {
+      // Update the player's appearance
+      Object.assign(p, style(b));
+      p.color = color(b.color, p.color);
+    } else if (u.pathname === "/bio") {
+      // Save the player's biography on the multiplayer server
+      p.bio = String(b.bio || "")
+        .trim()
+        .slice(0, 200);
     } else if (u.pathname === "/chat") {
       const msg = String(b.text || "")
         .trim()

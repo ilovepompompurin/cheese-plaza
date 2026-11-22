@@ -18,6 +18,15 @@ clothingCatalogImg.src = "/assets/ui/clothing-catalog.png";
 const clothingButtonsImg = new Image();
 clothingButtonsImg.src = "/assets/ui/clothing-buttons.png";
 // Cane's Threads NPC
+
+const caneDialogue = [
+  "Hellooo Darling! You look fabulous today!",
+  "Looking for something spicy or sweet? I have both!",
+  "Come back again Darling! *giggles*",
+];
+
+let caneDialogueIndex = 0;
+
 const clothingNPC = new Image();
 clothingNPC.src = "/assets/npcs/clothing-shopkeeper.png";
 
@@ -40,6 +49,43 @@ const clothingCatalog = [
     name: "Outfit 3",
     price: 100,
     image: "/assets/catalog/clothing/outfit3.png",
+  },
+
+  {
+    id: "outfit4",
+    name: "Outfit 4",
+    price: 125,
+    image: "/assets/catalog/clothing/outfit4.png",
+  },
+  {
+    id: "outfit5",
+    name: "Outfit 5",
+    price: 150,
+    image: "/assets/catalog/clothing/outfit5.png",
+  },
+  {
+    id: "outfit6",
+    name: "Outfit 6",
+    price: 175,
+    image: "/assets/catalog/clothing/outfit6.png",
+  },
+  {
+    id: "outfit7",
+    name: "Outfit 7",
+    price: 200,
+    image: "/assets/catalog/clothing/outfit7.png",
+  },
+  {
+    id: "outfit8",
+    name: "Outfit 8",
+    price: 225,
+    image: "/assets/catalog/clothing/outfit8.png",
+  },
+  {
+    id: "outfit9",
+    name: "Outfit 9",
+    price: 250,
+    image: "/assets/catalog/clothing/outfit9.png",
   },
 ];
 // Clothing catalog pagination
@@ -317,6 +363,16 @@ $("enter").onclick = async () => {
       shirt: saved.shirt,
       home: layout,
     });
+    // Restore saved biography when joining Cheese Plaza
+    const savedBiography = localStorage.getItem("cheeseProfileBio") || "";
+
+    if (savedBiography.trim()) {
+      api("/bio", {
+        bio: savedBiography.trim(),
+      }).catch((error) => {
+        console.error("Failed to restore biography:", error);
+      });
+    }
     saved.name = $("name").value;
     saved.color = $("color").value;
     persist();
@@ -427,8 +483,113 @@ window.addEventListener("keyup", (e) => keys.delete(e.key.toLowerCase()));
 window.addEventListener("blur", () => keys.clear());
 canvas.onclick = (e) => {
   const r = canvas.getBoundingClientRect();
-  const x = ((e.clientX - r.left) * 1000) / r.width,
-    y = ((e.clientY - r.top) * 600) / r.height;
+
+  let x = ((e.clientX - r.left) * 1000) / r.width;
+  let y = ((e.clientY - r.top) * 600) / r.height;
+
+  // Convert screen coordinates to town coordinates when zoomed
+  if (area === "town" && currentShop !== "clothing") {
+    const viewWidth = 1000 / cameraZoom;
+    const viewHeight = 600 / cameraZoom;
+
+    const cameraX = Math.max(
+      0,
+      Math.min(1000 - viewWidth, (me?.x ?? 500) - viewWidth / 2),
+    );
+
+    const cameraY = Math.max(
+      0,
+      Math.min(600 - viewHeight, (me?.y ?? 300) - viewHeight / 2),
+    );
+
+    x = cameraX + x / cameraZoom;
+    y = cameraY + y / cameraZoom;
+  }
+
+  // Cane's Threads shopkeeper interaction
+  if (currentShop === "clothing") {
+    // Pink shopkeeper on the right side of the shop
+    if (x >= 700 && x <= 950 && y >= 100 && y <= 570) {
+      const dialogue = document.createElement("div");
+
+      // Close the conversation after the third message
+      if (caneDialogueIndex >= caneDialogue.length) {
+        document.querySelector("#gameCanvasWrapper .npc-dialogue")?.remove();
+        caneDialogueIndex = 0;
+        return;
+      }
+
+      dialogue.textContent = "🐭 Cane: " + caneDialogue[caneDialogueIndex];
+      caneDialogueIndex++;
+
+      Object.assign(dialogue.style, {
+        position: "absolute",
+
+        // Under Cane's face, on the right side
+
+        top: "60%",
+        left: "80.5%",
+        transform: "none",
+
+        // Responsive dimensions
+        width: "19%",
+        maxWidth: "none",
+
+        boxSizing: "border-box",
+        padding: "clamp(5px, 1.2vw, 12px)",
+
+        // Responsive text
+        fontSize: "clamp(8px, 1.7cqw, 24px)",
+        lineHeight: "1.3",
+        whiteSpace: "normal",
+        overflowWrap: "anywhere",
+        overflow: "visible",
+
+        // Cheese Plaza theme
+        background: "#fffaf1",
+        color: "#7653a0",
+        border: "2px solid #c9a7eb",
+        borderRadius: "12px",
+        fontWeight: "bold",
+        textAlign: "center",
+        zIndex: "100",
+      });
+      let tail = dialogue.querySelector(".npc-dialogue-tail");
+
+      if (!tail) {
+        tail = document.createElement("div");
+        tail.className = "npc-dialogue-tail";
+        dialogue.appendChild(tail);
+      }
+      const dialogueTail = document.createElement("div");
+      dialogue.appendChild(dialogueTail);
+      Object.assign(dialogueTail.style, {
+        position: "absolute",
+        left: "50%",
+        top: "-9px",
+        transform: "translateX(-50%) rotate(-45deg)",
+        width: "16px",
+        height: "16px",
+        background: "#fffaf1",
+        borderTop: "2px solid #c9a7eb",
+        borderRight: "2px solid #c9a7eb",
+        zIndex: "101",
+      });
+
+      const shopWrapper = document.getElementById("gameCanvasWrapper");
+      shopWrapper.style.position = "relative";
+      shopWrapper.style.containerType = "inline-size";
+
+      shopWrapper.querySelector(".npc-dialogue")?.remove();
+      dialogue.className = "npc-dialogue";
+      shopWrapper.appendChild(dialogue);
+
+      dialogue.onclick = () => dialogue.remove();
+
+      return;
+    }
+  }
+
   if (editing) {
     if (selected === "remove") {
       let best = -1,
@@ -446,6 +607,25 @@ canvas.onclick = (e) => {
     saveHome();
     return;
   }
+
+  // Check whether another player's character was clicked
+  const clickedPlayer = getClickedPlayer(x, y);
+
+  if (clickedPlayer) {
+    target = null;
+
+    // Display the selected player's name
+    $("publicProfileName").textContent = clickedPlayer.name;
+
+    $("publicProfileBio").textContent =
+      clickedPlayer.bio || "This player hasn't written a biography yet.";
+
+    // Open the public profile
+    $("publicProfile").showModal();
+    previewPublicPlayer(clickedPlayer);
+    return;
+  }
+
   target = { x, y };
 };
 setInterval(() => session && api("/ping").catch(() => {}), 12000);
@@ -499,11 +679,6 @@ function world() {
       ctx.drawImage(clothingCatalogImg, 0, 0);
     }
 
-    // Draw custom Buy/Equip button artwork
-    if (clothingButtonsImg.complete && clothingButtonsImg.naturalWidth > 0) {
-      ctx.drawImage(clothingButtonsImg, 0, 0);
-    }
-
     // 3. Draw shopkeeper over the catalog
     if (clothingNPC.complete && clothingNPC.naturalWidth > 0) {
       ctx.drawImage(clothingNPC, 0, 0, 1000, 600);
@@ -536,6 +711,24 @@ function world() {
   // Display Shopping District
   if (townImage.complete && townImage.naturalWidth > 0) {
     ctx.drawImage(townImage, 0, 0, 1000, 600);
+
+    // Show collision zones while testing
+    const showCollisionZones = false;
+
+    if (showCollisionZones) {
+      ctx.save();
+
+      for (const zone of townCollisions) {
+        ctx.fillStyle = "rgba(255, 0, 0, 0.3)";
+        ctx.strokeStyle = "red";
+        ctx.lineWidth = 2;
+
+        ctx.fillRect(zone.x, zone.y, zone.width, zone.height);
+        ctx.strokeRect(zone.x, zone.y, zone.width, zone.height);
+      }
+
+      ctx.restore();
+    }
   }
 }
 
@@ -568,10 +761,22 @@ async function go(a) {
     $("decorate").hidden = a !== session.id;
     target = null;
     keys.clear();
+
     if (me) {
-      me.x = 500;
-      me.y = 350;
+      if (a === "town") {
+        // Shopping District spawn point
+
+        me.x = 500;
+        me.y = 520;
+      } else {
+        // Home spawn point
+        me.x = 500;
+        me.y = 350;
+      }
+
+      me.dirty = true;
     }
+
     $("areaTitle").textContent =
       a === "town"
         ? "Town square"
@@ -626,12 +831,12 @@ function preview() {
   const c = $("preview").getContext("2d");
 
   // Clear previous preview
-  c.clearRect(0, 0, 200, 110);
+  c.clearRect(0, 0, 200, 200);
 
-  const width = 96;
-  const height = 96;
+  const width = 170;
+  const height = 170;
   const x = 100 - width / 2;
-  const y = 7;
+  const y = 15;
 
   // Draw base character
   if (characterImage.complete && characterImage.naturalWidth > 0) {
@@ -669,6 +874,48 @@ function preview() {
     c.fillText($("hat").value, 100, 34);
   }
 }
+
+/* Draw another player's mouse in their public profile */
+function previewPublicPlayer(player) {
+  const canvas = $("publicProfilePreview");
+  const c = canvas.getContext("2d");
+
+  c.clearRect(0, 0, 200, 200);
+
+  const width = 170;
+  const height = 170;
+  const x = 100 - width / 2;
+  const y = 15;
+
+  // Draw player's fur
+  const coloredFur = getColoredFur(player.color || "#e9ab76");
+
+  if (coloredFur) {
+    c.drawImage(coloredFur, x, y, width, height);
+  }
+
+  // Draw player's outfit
+  const outfit = outfitImages[player.shirt];
+
+  if (outfit && outfit.complete && outfit.naturalWidth > 0) {
+    c.drawImage(outfit, x, y, width, height);
+  }
+
+  // Draw player's face
+  const face = faceImages[player.face || "face1"];
+
+  if (face && face.complete && face.naturalWidth > 0) {
+    c.drawImage(face, x, y, width, height);
+  }
+
+  // Draw player's accessory
+  if (player.hat && player.hat !== "none") {
+    c.font = "27px system-ui";
+    c.textAlign = "center";
+    c.fillText(player.hat, 100, 45);
+  }
+}
+
 {
   const c = $("preview").getContext("2d");
   c.clearRect(0, 0, 200, 110);
@@ -696,15 +943,229 @@ function preview() {
   c.textAlign = "center";
   c.fillText($("hat").value === "none" ? "" : $("hat").value, 100, 34);
 }
+
+/* Close another player's public Profile */
+$("closePublicProfile").onclick = () => {
+  $("publicProfile").close();
+};
+
+/* Profile wardrobe navigation */
+let wardrobeCategory = "outfits";
+let wardrobePage = 0;
+const wardrobeItemsPerPage = 4;
+
+/* Switch between wardrobe categories */
+document.querySelectorAll("#wardrobeTabs .wardrobe-tab").forEach((button) => {
+  button.addEventListener("click", () => {
+    wardrobeCategory = button.dataset.category;
+    wardrobePage = 0;
+
+    // Highlight the selected bookmark
+    document.querySelectorAll("#wardrobeTabs .wardrobe-tab").forEach((tab) => {
+      tab.classList.toggle("active", tab === button);
+    });
+
+    renderProfileOutfits();
+  });
+});
+
+/* Profile wardrobe — Previous page */
+$("wardrobePrev").onclick = () => {
+  if (wardrobePage > 0) {
+    wardrobePage--;
+    renderProfileOutfits();
+  }
+};
+
+/* Profile wardrobe — Next page */
+$("wardrobeNext").onclick = () => {
+  wardrobePage++;
+  renderProfileOutfits();
+};
+
+/* Display outfits, faces, and accessories in Profile */
+function renderProfileOutfits() {
+  const grid = $("profileOutfitGrid");
+  if (!grid) return;
+
+  grid.innerHTML = "";
+
+  let items = [];
+  let selector = null;
+
+  // OUTFITS — purchased items only
+  if (wardrobeCategory === "outfits") {
+    selector = $("shirt");
+
+    items = [
+      { id: "none", name: "No Outfit", image: null },
+      ...clothingCatalog.filter((item) => ownedClothes.includes(item.id)),
+    ];
+  }
+
+  // FACES — display all available face styles
+  else if (wardrobeCategory === "faces") {
+    selector = $("face");
+
+    items = [
+      {
+        id: "face1",
+        name: "Face 1",
+        image: "/assets/characters/faces/face1.png",
+      },
+      {
+        id: "face2",
+        name: "Face 2",
+        image: "/assets/characters/faces/face2.png",
+      },
+      {
+        id: "face3",
+        name: "Face 3",
+        image: "/assets/characters/faces/face3.png",
+      },
+      {
+        id: "face4",
+        name: "Face 4",
+        image: "/assets/characters/faces/face4.png",
+      },
+    ];
+  }
+
+  // ACCESSORIES — use existing accessory options
+  else if (wardrobeCategory === "accessories") {
+    selector = $("hat");
+
+    items = Array.from(selector.options).map((option) => ({
+      id: option.value,
+      name: option.value === "none" ? "None" : option.textContent,
+      emoji: option.value === "none" ? "✕" : option.textContent,
+    }));
+  }
+
+  // Show only four items per page
+  const totalPages = Math.max(
+    1,
+    Math.ceil(items.length / wardrobeItemsPerPage),
+  );
+
+  wardrobePage = Math.min(wardrobePage, totalPages - 1);
+
+  const start = wardrobePage * wardrobeItemsPerPage;
+  const visibleItems = items.slice(start, start + wardrobeItemsPerPage);
+
+  // Create inventory buttons
+  for (const item of visibleItems) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "profile-outfit-item";
+    button.title = item.name;
+
+    // Highlight current selection
+    if (selector.value === item.id) {
+      button.classList.add("selected");
+    }
+
+    if (item.image) {
+      const image = document.createElement("img");
+      image.src = item.image;
+      image.alt = item.name;
+      button.appendChild(image);
+    } else {
+      button.textContent = item.emoji || "None";
+    }
+
+    // Equip or preview selected item
+    button.onclick = () => {
+      selector.value = item.id;
+
+      renderProfileOutfits();
+      preview();
+    };
+
+    grid.appendChild(button);
+  }
+
+  // Update page indicator
+  $("wardrobePage").textContent = `${wardrobePage + 1} / ${totalPages}`;
+
+  $("wardrobePrev").disabled = wardrobePage === 0;
+  $("wardrobeNext").disabled = wardrobePage >= totalPages - 1;
+}
+
+/* Show purchased outfits in the Profile dropdown */
+function updateProfileOutfits() {
+  const dropdown = $("shirt");
+
+  // Remember the currently equipped outfit
+  const equipped = saved.shirt || "none";
+
+  // Clear the dropdown
+  dropdown.innerHTML = "";
+
+  // Always allow removing an outfit
+  dropdown.add(new Option("No outfit", "none"));
+
+  // Add purchased outfits
+  for (const item of clothingCatalog) {
+    if (ownedClothes.includes(item.id)) {
+      dropdown.add(new Option(item.name, item.id));
+    }
+  }
+
+  // Select the equipped outfit if it's available
+  dropdown.value = [...dropdown.options].some(
+    (option) => option.value === equipped,
+  )
+    ? equipped
+    : "none";
+}
+
+/* Profile biography edit mode */
+$("editBio").onclick = () => {
+  const bioEditor = $("profileBio");
+  const bioDisplay = $("profileBioDisplay");
+  const editButton = $("editBio");
+
+  if (bioEditor.hidden) {
+    // Enter edit mode
+    bioEditor.hidden = false;
+    bioDisplay.hidden = true;
+    editButton.textContent = "Done Editing";
+    bioEditor.focus();
+  } else {
+    // Return to view mode
+    bioEditor.hidden = true;
+    bioDisplay.hidden = false;
+    bioDisplay.textContent = bioEditor.value.trim() || "No biography yet.";
+    editButton.textContent = "Edit Bio";
+  }
+};
+
 $("dress").onclick = () => {
   if (!session) return;
+  $("profilePlayerName").textContent =
+    saved.name || session?.name || me?.name || "My Mouse";
   $("fur").value = saved.color || "#e9ab76";
-  $("shirt").value = saved.shirt || "none";
+  updateProfileOutfits();
+  renderProfileOutfits();
   $("hat").value = saved.hat || "none";
   $("face").value = saved.face || "face1";
 
   keys.clear();
   target = null;
+  // Load the player's saved biography
+
+  // Load saved biography
+  const savedBio = localStorage.getItem("cheeseProfileBio") || "";
+
+  $("profileBio").value = savedBio;
+  $("profileBioDisplay").textContent = savedBio.trim() || "No biography yet.";
+
+  // Always open Profile in viewing mode
+  $("profileBio").hidden = true;
+  $("profileBioDisplay").hidden = false;
+  $("editBio").textContent = "Edit Bio";
+
   $("closet").showModal();
   preview();
 };
@@ -728,6 +1189,18 @@ $("clothingShop").addEventListener("close", () => {
 for (const id of ["fur", "shirt", "hat"]) $(id).oninput = preview;
 $("cancelStyle").onclick = () => $("closet").close();
 $("saveStyle").onclick = async () => {
+  // Save the player's biography locally
+  localStorage.setItem("cheeseProfileBio", $("profileBio").value.trim());
+
+  // Share biography with other players
+  if (session) {
+    api("/bio", {
+      bio: $("profileBio").value.trim(),
+    }).catch((error) => {
+      console.error("Failed to update biography:", error);
+    });
+  }
+
   const data = {
     color: $("fur").value,
     shirt: $("shirt").value,
@@ -744,6 +1217,32 @@ $("saveStyle").onclick = async () => {
     $("status").textContent = e.message;
   }
 };
+
+/* Find a player clicked in the Shopping District */
+function getClickedPlayer(x, y) {
+  if (area !== "town" || currentShop === "clothing") {
+    return null;
+  }
+
+  // Check from nearest rendered player backward
+  const visiblePlayers = players
+    .filter((p) => p.area === area && p.id !== session?.id)
+    .sort((a, b) => b.y - a.y);
+
+  return (
+    visiblePlayers.find((p) => {
+      const halfWidth = 32;
+      const height = 64;
+
+      return (
+        x >= p.x - halfWidth &&
+        x <= p.x + halfWidth &&
+        y >= p.y - height + 20 &&
+        y <= p.y + 20
+      );
+    }) || null
+  );
+}
 
 function avatar(p) {
   const width = 64;
@@ -907,6 +1406,66 @@ function avatar(p) {
 }
 
 let prev = performance.now();
+
+/* Shopping District collision zones */
+
+const townCollisions = [
+  // Sky — prevent players from walking above the buildings
+
+  // SKY — Block the entire blue background
+
+  // Top sky
+  { x: 0, y: 0, width: 1000, height: 165 },
+
+  // Left edge of the map
+  { x: 0, y: 165, width: 45, height: 255 },
+
+  // Sky between Cheese Café and Whiskers
+  { x: 305, y: 165, width: 23, height: 245 },
+
+  // Sky between Whiskers and Cane's Threads
+  { x: 638, y: 165, width: 12, height: 240 },
+
+  // Right edge of the map
+  { x: 980, y: 165, width: 20, height: 255 },
+
+  // Cheese Café — upper building area
+  { x: 45, y: 105, width: 260, height: 245 },
+
+  // Left and right sides near the café entrance
+  { x: 45, y: 350, width: 35, height: 115 },
+  { x: 235, y: 350, width: 70, height: 115 },
+
+  // Whiskers — upper building area
+  { x: 328, y: 165, width: 310, height: 175 },
+
+  // Lower building sections, leaving the doorway open
+  { x: 328, y: 340, width: 200, height: 120 },
+  { x: 590, y: 340, width: 48, height: 115 },
+
+  // Cane's Threads — upper building
+  { x: 650, y: 105, width: 330, height: 225 },
+
+  // Lower building walls — leave entrance accessible
+  { x: 650, y: 330, width: 33, height: 125 },
+  { x: 755, y: 330, width: 225, height: 125 },
+];
+
+/* Check whether a position is blocked */
+function isTownBlocked(x, y) {
+  if (area !== "town" || currentShop === "clothing") {
+    return false;
+  }
+
+  return townCollisions.some(
+    (zone) =>
+      x >= zone.x &&
+      x <= zone.x + zone.width &&
+      y >= zone.y &&
+      y <= zone.y + zone.height,
+  );
+}
+
 function tick(t) {
   const dt = Math.min((t - prev) / 1000, 0.05);
   prev = t;
@@ -930,8 +1489,18 @@ function tick(t) {
     }
     const len = Math.hypot(dx, dy);
     if (len) {
-      me.x = Math.max(25, Math.min(975, me.x + (dx / len) * 170 * dt));
-      me.y = Math.max(25, Math.min(575, me.y + (dy / len) * 170 * dt));
+      const nextX = Math.max(25, Math.min(975, me.x + (dx / len) * 170 * dt));
+      const nextY = Math.max(25, Math.min(800, me.y + (dy / len) * 170 * dt));
+
+      // Check horizontal movement
+      if (!isTownBlocked(nextX, me.y)) {
+        me.x = nextX;
+      }
+
+      // Check vertical movement
+      if (!isTownBlocked(me.x, nextY)) {
+        me.y = nextY;
+      }
     }
     if (t - lastSend > 85 && (len || me.dirty)) {
       lastSend = t;
@@ -939,6 +1508,33 @@ function tick(t) {
       me.dirty = !!len;
     } else if (len) me.dirty = true;
   }
+
+  // Camera follows the player when zoomed in
+  const useTownCamera = area === "town" && currentShop !== "clothing";
+
+  if (useTownCamera) {
+    ctx.save();
+
+    // Visible area in original map coordinates
+    const viewWidth = 1000 / cameraZoom;
+    const viewHeight = 600 / cameraZoom;
+
+    // Center the view on the player
+    const cameraX = Math.max(
+      0,
+      Math.min(1000 - viewWidth, (me?.x ?? 500) - viewWidth / 2),
+    );
+
+    const cameraY = Math.max(
+      0,
+      Math.min(600 - viewHeight, (me?.y ?? 300) - viewHeight / 2),
+    );
+
+    // Apply the camera transform
+    ctx.scale(cameraZoom, cameraZoom);
+    ctx.translate(-cameraX, -cameraY);
+  }
+
   if (area === "town") world();
   else {
     const owner = players.find((p) => p.id === area);
@@ -956,7 +1552,10 @@ function tick(t) {
       avatar(p.id === session?.id && me ? { ...p, x: me.x, y: me.y } : p);
     }
   }
-
+  // Restore normal canvas coordinates after drawing the town
+  if (useTownCamera) {
+    ctx.restore();
+  }
   // Draw enlarged, stationary player inside Cane's Threads
   if (currentShop === "clothing" && me && session) {
     ctx.save();
@@ -1010,3 +1609,56 @@ try {
 }
 
 let currentShop = null;
+
+/* Shopping District camera */
+let cameraZoom = 1;
+const cameraMinZoom = 1;
+const cameraMaxZoom = 2.5;
+const cameraZoomStep = 0.15;
+
+/* Zoom button controls */
+document.getElementById("zoomIn").addEventListener("click", () => {
+  if (currentShop === "clothing") return;
+
+  cameraZoom = Math.min(
+    cameraMaxZoom,
+    Math.round((cameraZoom + cameraZoomStep) * 100) / 100,
+  );
+});
+
+document.getElementById("zoomOut").addEventListener("click", () => {
+  if (currentShop === "clothing") return;
+
+  cameraZoom = Math.max(
+    cameraMinZoom,
+    Math.round((cameraZoom - cameraZoomStep) * 100) / 100,
+  );
+});
+
+/* Reset Shopping District zoom */
+document.getElementById("zoomReset").addEventListener("click", () => {
+  if (area !== "town" || currentShop === "clothing") return;
+
+  cameraZoom = 1;
+});
+
+/* Mouse-wheel zoom for Shopping District */
+canvas.addEventListener(
+  "wheel",
+  (e) => {
+    if (area !== "town" || currentShop === "clothing") return;
+
+    e.preventDefault();
+
+    const direction = e.deltaY < 0 ? 1 : -1;
+
+    cameraZoom = Math.max(
+      cameraMinZoom,
+      Math.min(
+        cameraMaxZoom,
+        Math.round((cameraZoom + direction * cameraZoomStep) * 100) / 100,
+      ),
+    );
+  },
+  { passive: false },
+);

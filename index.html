@@ -24,8 +24,8 @@
           <button id="invite">Copy invite link</button>
         </div>
         <div id="tools">
-          <button id="dress">Customize avatar</button
-          ><button id="myHome">My home</button><button id="town">Town</button
+          <button id="dress">Profile</button><button id="myHome">My home</button
+          ><button id="town">Town</button
           ><button id="decorate" hidden>Decorate home</button>
         </div>
         <div id="editor" hidden>
@@ -41,6 +41,15 @@
 
         <div id="gameCanvasWrapper">
           <canvas id="world" width="1000" height="600"></canvas>
+              <button id="exitShop" type="button" hidden>🚪 Exit Shop</button>
+
+          <!-- Shopping District zoom controls -->
+
+          <div id="zoomControls">
+            <button id="zoomIn" type="button" title="Zoom In">+</button>
+            <button id="zoomReset" type="button" title="Reset Zoom">⟲</button>
+            <button id="zoomOut" type="button" title="Zoom Out">−</button>
+          </div>
 
           <div class="shop-catalog" id="dressingRoomCatalog">
             <h2>Clothing Catalog</h2>
@@ -90,41 +99,151 @@
         ><button id="enter">Enter plaza</button><small id="error"></small>
       </div>
     </div>
+
     <dialog id="closet">
-      <h2>Avatar closet</h2>
-      <label>Fur <input id="fur" type="color" /></label>
-      <label>
-        Outfit
-        <select id="shirt">
-          <option value="none">No outfit</option>
-          <option value="outfit1">Outfit 1</option>
-        </select>
-      </label>
+      <h2>🐭 My Profile</h2>
 
-      <label>
-        Face
-        <select id="face">
-          <option value="face1">Face 1</option>
-          <option value="face2">Face 2</option>
-          <option value="face3">Face 3</option>
-          <option value="face4">Face 4</option>
-        </select>
-      </label>
+      <!-- Character preview and biography -->
 
-      <label
-        >Accessory
-        <select id="hat">
-          <option value="none">None</option>
-          <option>🎩</option>
-          <option>👑</option>
-          <option>🎀</option>
-          <option>🧢</option>
-          <option>🌸</option>
-        </select></label
-      ><canvas id="preview" width="200" height="110"></canvas
-      ><button id="saveStyle">Save look</button>
-      <button id="cancelStyle">Cancel</button>
+<!-- Main Profile layout -->
+<div class="profile-main">
+
+  <!-- LEFT: Player preview and biography -->
+  <div class="profile-left">
+
+    <div class="profile-avatar">
+      <h3 id="profilePlayerName">My Mouse</h3>
+<canvas id="preview" width="200" height="200"></canvas>
+    </div>
+
+
+<div class="profile-biography">
+  <div class="bio-header">
+    <h3>About Me</h3>
+
+  </div>
+
+  <!-- Biography displayed normally -->
+  <p id="profileBioDisplay"></p>
+
+  <!-- Hidden biography editor -->
+  <textarea
+    id="profileBio"
+    maxlength="200"
+    rows="5"
+    placeholder="Write something about yourself..."
+    hidden
+  ></textarea>
+</div>
+
+
+  </div>
+
+  <!-- RIGHT: Wardrobe inventory -->
+  <div class="profile-outfits">
+            <label>
+          Fur
+          <input id="fur" type="color" />
+        </label>
+    <h3>My Wardrobe</h3>
+
+    <select id="shirt" hidden>
+      <option value="none">No outfit</option>
+    </select>
+
+    <div id="wardrobeTabs">
+      <button type="button" class="wardrobe-tab active" data-category="outfits">Outfits</button>
+      <button type="button" class="wardrobe-tab" data-category="faces">Faces</button>
+      <button type="button" class="wardrobe-tab" data-category="accessories">Accessories</button>
+    </div>
+
+    <div id="profileOutfitGrid"></div>
+
+    <div id="wardrobePagination">
+      <button type="button" id="wardrobePrev">◀</button>
+      <span id="wardrobePage">1 / 1</span>
+      <button type="button" id="wardrobeNext">▶</button>
+    </div>
+  </div>
+
+</div>
+
+      </div>
+
+      <!-- Customization controls below preview and biography -->
+      <div class="profile-customization">
+
+
+        <!-- Profile clothing inventory -->
+
+
+
+        <label>
+          Face
+          <select id="face">
+            <option value="face1">Face 1</option>
+            <option value="face2">Face 2</option>
+            <option value="face3">Face 3</option>
+            <option value="face4">Face 4</option>
+          </select>
+        </label>
+
+        <label>
+          Accessory
+          <select id="hat">
+            <option value="none">None</option>
+            <option>🎩</option>
+            <option>👑</option>
+            <option>🎀</option>
+            <option>🧢</option>
+            <option>🌸</option>
+          </select>
+        </label>
+      </div>
+
+      <!-- Profile actions -->
+
+<div class="profile-actions">
+  <button id="saveStyle" type="button">Save Look</button>
+  <button id="editBio" type="button">Edit Bio</button>
+  <button id="cancelStyle" type="button">Cancel</button>
+</div>
+
     </dialog>
+
+    <!-- Public player profile -->
+   
+<!-- Public player profile -->
+<dialog id="publicProfile" class="public-profile">
+
+  <div class="public-profile-layout">
+
+    <!-- Character card -->
+    <div class="public-profile-avatar">
+      <h3 id="publicProfileName">Player Profile</h3>
+      <canvas
+        id="publicProfilePreview"
+        width="200"
+        height="200"
+      ></canvas>
+    </div>
+
+    <!-- Biography -->
+    <div class="public-profile-bio">
+      <h3>About Me</h3>
+      <p id="publicProfileBio">
+        This player hasn't written a biography yet.
+      </p>
+    </div>
+
+  </div>
+
+  <button id="closePublicProfile" type="button">
+    Close Profile
+  </button>
+
+</dialog>
+
 
     <!-- Cane's Threads Clothing Shop -->
     <dialog id="clothingShop" class="clothing-shop">
@@ -143,7 +262,7 @@
     </dialog>
 
     <!-- Return to Shopping District -->
-    <button id="exitShop" type="button" hidden>🚪 Exit Shop</button>
+
 
     <script src="js/game.js"></script>
   </body>
