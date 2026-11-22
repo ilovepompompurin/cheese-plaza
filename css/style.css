@@ -1461,3 +1461,89 @@ display: block;
 #exitShop[hidden] {
   display: none !important;
 }
+
+/* My Profile — top-right close button */
+#closet {
+  position: relative;
+}
+
+#closet .profile-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+
+  width: 32px;
+  height: 32px;
+  padding: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: #7653a0;
+  color: white;
+  border: none;
+  border-radius: 50%;
+
+font-size: 22px;
+font-weight: bold;
+line-height: 1;
+font-family: Arial, sans-serif;
+text-align: center;
+padding-top: 3px;
+padding-bottom: 0;
+box-sizing: border-box;
+  cursor: pointer;
+  z-index: 10;
+}
+
+#closet .profile-close:hover {
+  background: #63438b;
+}
+
+
+/* Scale My Profile with the browser window */
+#closet {
+  width: 760px;
+  height: 730px;
+  max-width: none;
+  max-height: none;
+  box-sizing: border-box;
+  overflow: hidden;
+
+  transform: scale(
+    min(
+      1,
+      calc((100vw - 32px) / 760px),
+      calc((100vh - 32px) / 730px)
+    )
+  );
+  transform-origin: center center;
+}
+
+/* Keep wardrobe panel the same size on every page */
+#closet .profile-outfits {
+  height: 534px;
+  box-sizing: border-box;
+}
+
+/* Reserve space for all four outfit slots */
+#closet #profileOutfitGrid {
+  min-height: 286px;
+  grid-template-rows: repeat(2, 1fr);
+  align-content: start;
+}
+
+/* Keep wardrobe navigation in the same position */
+#closet #wardrobePagination {
+  margin-top: 12px;
+}
+
+/* Move top and bottom catalog rows toward the middle */
+#clothingItems .clothing-item:nth-child(-n+3) {
+  transform: translateY(15%);
+}
+
+#clothingItems .clothing-item:nth-child(n+7) {
+  transform: translateY(-15%);
+}

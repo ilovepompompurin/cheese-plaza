@@ -125,46 +125,68 @@ function renderClothingCatalog() {
 
     const button = document.createElement("button");
     button.type = "button";
-    button.textContent = owned ? "Equip" : "Buy";
+    button.textContent = owned ? "Sell" : "Try On";
+    button.disabled = false;
 
     button.onclick = () => {
-      if (!ownedClothes.includes(item.id)) {
-        // Check whether the player has enough Cheese
-        if (coins < item.price) {
-          alert("You don't have enough Cheese!");
-          return;
-        }
+      const isOwned = ownedClothes.includes(item.id);
 
-        // Purchase the outfit
-        coins -= item.price;
-        ownedClothes.push(item.id);
+      if (isOwned) {
+        const refund = Math.floor(item.price * 0.5);
 
-        // Save purchases locally
-        localStorage.setItem("cheeseCoins", String(coins));
-        localStorage.setItem("ownedClothes", JSON.stringify(ownedClothes));
+        // Prepare Cane's selling offer
+        window.caneSellItem = {
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          refund: refund,
+        };
 
-        renderClothingCatalog();
+        window.canePurchaseMessage = `🐭 Cane: Would you like to sell that for ${refund} Cheese?`;
+
+        // Open Cane's existing speech bubble
+        const rect = canvas.getBoundingClientRect();
+
+        canvas.dispatchEvent(
+          new MouseEvent("click", {
+            bubbles: true,
+            clientX: rect.left + (800 / 1000) * rect.width,
+            clientY: rect.top + (350 / 600) * rect.height,
+          }),
+        );
+
         return;
       }
 
-      // Equip an owned outfit
-      saved.shirt = item.id;
-
-      persist();
-
-      // Update the multiplayer server
-      if (session) {
-        api("/style", {
-          color: saved.color,
-          shirt: item.id,
-          hat: saved.hat,
-          face: saved.face || "face1",
-        }).catch((error) => {
-          console.error("Failed to equip outfit:", error);
-        });
+      // Temporarily try on an unowned outfit
+      if (me) {
+        me.shirt = item.id;
       }
 
-      renderClothingCatalog();
+      window.tryOnOutfit = item.id;
+      window.tryOnItem = {
+        id: item.id,
+        name: item.name,
+        price: item.price,
+      };
+      // Prepare Cane's purchase offer
+      window.canePurchaseMessage = `🐭 Cane: Splendid Darling! Would you like to buy it for ${item.price} Cheese?`;
+      // Automatically open Cane's dialogue
+      const npcClickX = 800;
+      const npcClickY = 350;
+
+      canvas.dispatchEvent(
+        new MouseEvent("click", {
+          bubbles: true,
+          clientX:
+            canvas.getBoundingClientRect().left +
+            (npcClickX / 1000) * canvas.getBoundingClientRect().width,
+          clientY:
+            canvas.getBoundingClientRect().top +
+            (npcClickY / 600) * canvas.getBoundingClientRect().height,
+        }),
+      );
+      console.log(`Trying on ${item.name} for ${item.price} Cheese`);
     };
 
     info.append(name, price);
@@ -523,14 +545,22 @@ canvas.onclick = (e) => {
       const dialogue = document.createElement("div");
 
       // Close the conversation after the third message
-      if (caneDialogueIndex >= caneDialogue.length) {
-        document.querySelector("#gameCanvasWrapper .npc-dialogue")?.remove();
-        caneDialogueIndex = 0;
-        return;
-      }
 
-      dialogue.textContent = "🐭 Cane: " + caneDialogue[caneDialogueIndex];
-      caneDialogueIndex++;
+      if (window.canePurchaseMessage) {
+        // Show Cane's purchase offer instead of regular dialogue
+        dialogue.textContent = window.canePurchaseMessage;
+      } else {
+        // Regular NPC conversation
+        if (caneDialogueIndex >= caneDialogue.length) {
+          document.querySelector("#gameCanvasWrapper .npc-dialogue")?.remove();
+          caneDialogueIndex = 0;
+          return;
+        }
+
+        dialogue.textContent = "🐭 Cane: " + caneDialogue[caneDialogueIndex];
+
+        caneDialogueIndex++;
+      }
 
       Object.assign(dialogue.style, {
         position: "absolute",
@@ -556,8 +586,10 @@ canvas.onclick = (e) => {
         overflow: "visible",
 
         // Cheese Plaza theme
-        background: "#fffaf1",
+        background: "rgba(255, 250, 241, 0.65)",
         color: "#7653a0",
+        textShadow:
+          "0 1px 2px rgba(255, 255, 255, 0.95), 0 0 5px rgba(255, 255, 255, 0.8)",
         border: "2px solid #c9a7eb",
         borderRadius: "12px",
         fontWeight: "bold",
@@ -580,7 +612,7 @@ canvas.onclick = (e) => {
         transform: "translateX(-50%) rotate(-45deg)",
         width: "16px",
         height: "16px",
-        background: "#fffaf1",
+        background: "rgba(255, 250, 241, 0.85)",
         borderTop: "2px solid #c9a7eb",
         borderRight: "2px solid #c9a7eb",
         zIndex: "101",
@@ -593,6 +625,150 @@ canvas.onclick = (e) => {
       shopWrapper.querySelector(".npc-dialogue")?.remove();
       dialogue.className = "npc-dialogue";
       shopWrapper.appendChild(dialogue);
+      // Move purchase dialogue higher to fit inside the dressing room
+      if (
+        window.canePurchaseMessage &&
+        (window.tryOnItem || window.caneSellItem)
+      ) {
+        dialogue.style.top = "51%";
+      }
+
+      if (
+        window.canePurchaseMessage &&
+        (window.tryOnItem || window.caneSellItem)
+      ) {
+        const choices = document.createElement("div");
+
+        Object.assign(choices.style, {
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "stretch",
+          gap: "5px",
+          marginTop: "8px",
+          width: "100%",
+        });
+
+        const buyButton = document.createElement("button");
+        buyButton.textContent = window.caneSellItem ? "Sell" : "Buy";
+
+        buyButton.onclick = (event) => {
+          event.stopPropagation();
+
+          // Handle selling an owned outfit
+          if (window.caneSellItem) {
+            const item = window.caneSellItem;
+
+            // Prevent selling an outfit twice
+            if (!ownedClothes.includes(item.id)) return;
+
+            // Refund Cheese and remove ownership
+            coins += item.refund;
+            ownedClothes = ownedClothes.filter((id) => id !== item.id);
+
+            localStorage.setItem("cheeseCoins", String(coins));
+            localStorage.setItem("ownedClothes", JSON.stringify(ownedClothes));
+
+            // Unequip the outfit if currently wearing it
+            if (saved.shirt === item.id) {
+              saved.shirt = "none";
+              persist();
+
+              if (session) {
+                api("/style", {
+                  color: saved.color,
+                  shirt: "none",
+                  hat: saved.hat,
+                  face: saved.face || "face1",
+                }).catch(console.error);
+              }
+            }
+
+            if (me && me.shirt === item.id) {
+              me.shirt = "none";
+            }
+
+            // Clear dialogue and temporary previews
+            window.caneSellItem = null;
+            window.tryOnItem = null;
+            window.tryOnOutfit = null;
+            window.canePurchaseMessage = null;
+
+            dialogue.remove();
+            renderClothingCatalog();
+            return;
+          }
+
+          const item = window.tryOnItem;
+          if (!item) return;
+
+          // Check the player's Cheese balance
+          if (coins < item.price) {
+            dialogue.firstChild.textContent = `🐭 Cane: You need ${item.price} Cheese to buy this outfit!`;
+            return;
+          }
+
+          // Purchase the outfit
+          coins -= item.price;
+          ownedClothes.push(item.id);
+
+          localStorage.setItem("cheeseCoins", String(coins));
+          localStorage.setItem("ownedClothes", JSON.stringify(ownedClothes));
+
+          // Return to the previously equipped outfit
+          if (me) me.shirt = saved.shirt || "none";
+
+          // Clear the temporary preview
+          window.tryOnOutfit = null;
+          window.tryOnItem = null;
+          window.canePurchaseMessage = null;
+
+          // Close dialogue and refresh catalog
+          dialogue.remove();
+          renderClothingCatalog();
+        };
+
+        const noButton = document.createElement("button");
+        noButton.textContent = "No Thanks";
+        noButton.onclick = (event) => {
+          event.stopPropagation();
+          // Cancel selling without changing ownership or Cheese
+          if (window.caneSellItem) {
+            window.caneSellItem = null;
+            window.canePurchaseMessage = null;
+
+            dialogue.remove();
+            return;
+          }
+
+          // Remove the temporary outfit preview
+          window.tryOnOutfit = null;
+          window.tryOnItem = null;
+          window.canePurchaseMessage = null;
+
+          // Restore the player's saved outfit
+          if (me) {
+            me.shirt = saved.shirt || "none";
+          }
+
+          // Close Cane's purchase dialogue
+          document.querySelector("#gameCanvasWrapper .npc-dialogue")?.remove();
+        };
+
+        for (const button of [buyButton, noButton]) {
+          Object.assign(button.style, {
+            background: "#7653a0",
+            color: "white",
+            border: "none",
+            borderRadius: "8px",
+            padding: "6px",
+            fontSize: "inherit",
+            cursor: "pointer",
+          });
+        }
+
+        choices.append(buyButton, noButton);
+        dialogue.appendChild(choices);
+      }
 
       dialogue.onclick = () => dialogue.remove();
 
@@ -766,6 +942,27 @@ async function go(a) {
   try {
     await api("/area", { area: a });
     area = a;
+
+    // Close Cane's Threads when changing locations
+    currentShop = null;
+    document.body.classList.remove("in-clothing-shop");
+
+    // Hide the Exit Shop button
+    $("exitShop").hidden = true;
+
+    // Remove Cane's dialogue
+    document.querySelector("#gameCanvasWrapper .npc-dialogue")?.remove();
+
+    // Cancel unfinished shop interactions
+    window.canePurchaseMessage = null;
+    window.caneSellItem = null;
+    window.tryOnItem = null;
+    window.tryOnOutfit = null;
+
+    // Reset Cane's conversation
+    caneDialogueIndex = 0;
+    nearbyShop = null;
+
     editing = false;
     $("editor").hidden = true;
     $("decorate").hidden = a !== session.id;
@@ -1280,6 +1477,18 @@ function avatar(p) {
       // Return to Shopping District
       currentShop = null;
 
+      // Close Cane's dialogue when leaving the shop
+      document.querySelector("#gameCanvasWrapper .npc-dialogue")?.remove();
+
+      // Cancel any unfinished purchase or sale
+      window.canePurchaseMessage = null;
+      window.caneSellItem = null;
+      window.tryOnItem = null;
+      window.tryOnOutfit = null;
+
+      // Reset Cane's regular conversation
+      caneDialogueIndex = 0;
+
       // Prevent immediately reopening the shop
       nearbyShop = "clothing";
 
@@ -1376,10 +1585,13 @@ function avatar(p) {
       ctx.drawImage(coloredFur, -width / 2, -height + 20, width, height);
     }
 
-    // Draw clothing layer
-
     // Draw the player's equipped clothing
-    const equippedOutfit = outfitImages[p.shirt];
+    const equippedOutfit =
+      outfitImages[
+        currentShop === "clothing" && p.id === session?.id && window.tryOnOutfit
+          ? window.tryOnOutfit
+          : p.shirt
+      ];
 
     if (
       equippedOutfit &&
