@@ -72,7 +72,28 @@ function getAdminSession(token) {
 
   return session;
 }
+function verifyPlayerPassword(password, storedHash) {
+  if (typeof password !== "string" || typeof storedHash !== "string") {
+    return false;
+  }
 
+  const parts = storedHash.split(":");
+
+  if (parts.length !== 2) return false;
+
+  const [saltHex, expectedHex] = parts;
+
+  if (
+    !/^[0-9a-f]{32}$/i.test(saltHex) ||
+    !/^[0-9a-f]{128}$/i.test(expectedHex)
+  ) {
+    return false;
+  }
+
+  const actual = crypto.scryptSync(password, Buffer.from(saltHex, "hex"), 64);
+
+  return crypto.timingSafeEqual(actual, Buffer.from(expectedHex, "hex"));
+}
 function hashPlayerPassword(password) {
   const salt = crypto.randomBytes(16);
 
@@ -353,6 +374,53 @@ const server = http.createServer(async (req, res) => {
 
         console.error("Account registration failed:", error);
         return send(res, { error: "Registration failed." }, 500);
+      }
+    }
+
+    // Authenticate a returning player
+    if (u.pathname === "/account/login" && req.method === "POST") {
+      if (!db) {
+        return send(res, { error: "Account login is unavailable." }, 503);
+      }
+
+      const username = String(b.username || "").trim();
+      const password = b.password;
+
+      if (
+        typeof password !== "string" ||
+        !/^[a-zA-Z0-9_]{3,20}$/.test(username)
+      ) {
+        return send(res, { error: "Invalid credentials." }, 401);
+      }
+
+      try {
+        const result = await db.query(
+          `SELECT id, username, password_hash, cheese_balance
+         FROM player_accounts
+         WHERE username = $1`,
+          [username],
+        );
+
+        const account = result.rows[0];
+
+        if (
+          !account ||
+          !verifyPlayerPassword(password, account.password_hash)
+        ) {
+          return send(res, { error: "Invalid credentials." }, 401);
+        }
+
+        return send(res, {
+          success: true,
+          account: {
+            id: account.id,
+            username: account.username,
+            cheese_balance: account.cheese_balance,
+          },
+        });
+      } catch (error) {
+        console.error("Account login failed:", error.message);
+        return send(res, { error: "Login failed." }, 500);
       }
     }
 
