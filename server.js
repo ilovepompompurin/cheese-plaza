@@ -12,14 +12,39 @@ const db = process.env.DATABASE_URL
           : undefined,
     })
   : null;
+
+async function initializeDatabase() {
+  if (!db) return;
+
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS player_accounts (
+      id UUID PRIMARY KEY,
+      username VARCHAR(50) UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      cheese_balance INTEGER NOT NULL DEFAULT 200
+        CHECK (cheese_balance >= 0),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  console.log("Cheese Plaza player accounts table: READY");
+}
+
 // Test the PostgreSQL connection when the server starts
+
 if (db) {
   db.query("SELECT NOW()")
-    .then(() => {
+    .then(async () => {
       console.log("Cheese Plaza database: CONNECTED");
+
+      // Create database tables if they don't exist
+      await initializeDatabase();
     })
     .catch((error) => {
-      console.error("Cheese Plaza database connection failed:", error.message);
+      console.error(
+        "Cheese Plaza database initialization failed:",
+        error.message,
+      );
     });
 }
 
