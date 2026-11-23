@@ -22,7 +22,64 @@
             <h2 id="areaTitle">Town square</h2>
             <small id="roomLabel">Room —</small>
           </div>
-          <button id="invite">Copy invite link</button>
+
+
+<div id="roomInviteButtons">
+<button id="roomButton" type="button">Room</button>
+  <button id="invite" type="button">Copy invite link</button>
+</div>
+
+
+<!-- Session settings popup -->
+<div id="roomPanel" hidden>
+<h3>Room</h3>
+
+  <label for="roomCodeInput">Room Code</label>
+  <input
+    id="roomCodeInput"
+    type="text"
+    maxlength="20"
+    placeholder="PLAZA"
+  />
+
+<!-- Appears when the room code is edited -->
+<button id="createRoomButton" type="button" hidden>
+  Create Session
+</button>
+
+<!-- Message displayed when the room already exists -->
+<small id="roomCodeMessage" hidden>
+  This room already exists. Select Join under Active Rooms.
+</small>
+
+
+
+<!-- Active Cheese Plaza rooms -->
+<div id="activeRoomsSection">
+  <div id="activeRoomsHeader">
+    <h3>Active Rooms</h3>
+    <button
+      id="refreshRoomsButton"
+      type="button"
+      aria-label="Refresh active rooms"
+      title="Refresh active rooms"
+    >
+      ↻
+    </button>
+  </div>
+
+  <div id="activeRoomsList">
+    <p>Loading active rooms...</p>
+  </div>
+</div>
+
+
+  <div class="roomPanelButtons">
+<button id="roomSave" type="button" hidden>Change Session</button>
+    <button id="roomCancel" type="button">Cancel</button>
+  </div>
+</div>
+
         </div>
         <div id="tools">
           <button id="dress">Profile</button><button id="myHome">My home</button
@@ -44,6 +101,9 @@
           <canvas id="world" width="1000" height="600"></canvas>
               <div id="join">
       <div class="panel">
+
+<div id="welcomeContent">
+
         <h1>Welcome to the plaza!</h1>
         <p><small>Pick your look and join your friends.</small></p>
        
@@ -52,10 +112,10 @@
   <input id="name" maxlength="20" value="Guest" />
 </label>
 
-<label>
-  Room code
-  <input id="room" maxlength="20" value="PLAZA" />
-</label>
+
+<!-- Keep the selected room available to JavaScript -->
+<input id="room" type="hidden" value="PLAZA" />
+
 
 <label>
   Avatar color
@@ -68,7 +128,60 @@
 <div id="accountOptions">
   <button id="loginAccount" type="button">Login</button>
   <button id="registerAccount" type="button">Register</button>
+
+<button id="logoutAccount" type="button" hidden>
+  Logout
+</button>
+
 </div>
+</div> <!-- End welcomeContent -->
+<!-- Cheese Plaza account login and registration form -->
+
+<div id="accountForm" hidden>
+  <h3 id="accountFormTitle">Login</h3>
+
+  <label>
+    Username
+    <input
+      id="accountUsername"
+      type="text"
+      autocomplete="username"
+      maxlength="20"
+    />
+  </label>
+
+
+<label for="accountPassword">Password</label>
+
+<div class="passwordField">
+  <input
+    id="accountPassword"
+    type="password"
+    autocomplete="current-password"
+    minlength="12"
+    maxlength="128"
+  />
+
+  <button
+    id="togglePassword"
+    type="button"
+    aria-label="Show password"
+    title="Show password"
+  >👁</button>
+</div>
+
+<!-- Login and registration error messages -->
+<p id="accountError" role="alert" hidden></p>
+
+
+
+
+  <div class="accountFormButtons">
+    <button id="accountSubmit" type="button">Login</button>
+    <button id="accountCancel" type="button">Cancel</button>
+  </div>
+</div>
+
 
 <small id="error"></small>
 
@@ -120,9 +233,10 @@
         </div>
 
 
+
 <div id="emoteChatRow">
-  <div class="emotes" id="emotes"></div>
   <button id="toggleChat" type="button" title="Room Chat" aria-label="Toggle Room Chat">💬</button>
+  <div class="emotes" id="emotes"></div>
 </div>
 
 
@@ -318,3 +432,4 @@
     <script src="js/game.js"></script>
   </body>
 </html>
+

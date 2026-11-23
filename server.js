@@ -398,6 +398,29 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
+    /* Log out and invalidate an account session */
+    if (u.pathname === "/account/logout" && req.method === "POST") {
+      if (typeof b.token === "string" && b.token) {
+        playerSessions.delete(b.token);
+      }
+
+      return send(res, { success: true });
+    }
+
+    /* Verify an existing Cheese Plaza account session */
+    if (u.pathname === "/account/session" && req.method === "POST") {
+      const accountSession = getPlayerSession(b.token);
+
+      if (!accountSession) {
+        return send(res, { authenticated: false }, 401);
+      }
+
+      return send(res, {
+        authenticated: true,
+        username: accountSession.username,
+      });
+    }
+
     // Authenticate a returning player
     if (u.pathname === "/account/login" && req.method === "POST") {
       if (!db) {
@@ -487,6 +510,32 @@ const server = http.createServer(async (req, res) => {
       }
 
       return send(res, { authenticated: true });
+    }
+
+    /* List active Cheese Plaza rooms */
+    if (u.pathname === "/rooms" && req.method === "POST") {
+      const activeRooms = [...rooms.entries()]
+        .filter(([code, room]) => code === "PLAZA" || room.players.size > 0)
+        .map(([code, room]) => ({
+          code,
+          players: room.players.size,
+        }));
+
+      // Always include PLAZA, even when nobody is online
+      if (!activeRooms.some((room) => room.code === "PLAZA")) {
+        activeRooms.push({ code: "PLAZA", players: 0 });
+      }
+
+      // Keep PLAZA at the top of the list
+      activeRooms.sort((a, b) =>
+        a.code === "PLAZA"
+          ? -1
+          : b.code === "PLAZA"
+            ? 1
+            : b.players - a.players,
+      );
+
+      return send(res, { rooms: activeRooms });
     }
 
     // Regular player login

@@ -385,75 +385,224 @@ async function api(path, data = {}) {
   return out;
 }
 
-/* Login to an existing Cheese Plaza account */
-$("loginAccount").onclick = async () => {
-  const username = prompt("Enter your Cheese Plaza username:");
-  if (username === null) return;
+/* Verify and restore the saved Cheese Plaza account */
+const savedAccountToken = sessionStorage.getItem("cheeseAccountToken");
 
-  const password = prompt("Enter your password:");
-  if (password === null) return;
+if (savedAccountToken) {
+  // Keep account controls unavailable until verification finishes
+  $("loginAccount").hidden = true;
+  $("registerAccount").hidden = true;
+  $("logoutAccount").hidden = true;
+  $("enter").disabled = true;
 
-  try {
-    const result = await api("/account/login", {
-      username: username.trim(),
-      password,
+  api("/account/session", { token: savedAccountToken })
+    .then((result) => {
+      if (!result.authenticated) {
+        throw new Error("Session expired");
+      }
+
+      // Restore the verified account
+      $("name").value = result.username;
+      $("enter").textContent = "Enter Plaza";
+
+      $("logoutAccount").hidden = false;
+    })
+    .catch(() => {
+      // Remove invalid or expired sessions
+      sessionStorage.removeItem("cheeseAccountToken");
+
+      $("loginAccount").hidden = false;
+      $("registerAccount").hidden = false;
+      $("logoutAccount").hidden = true;
+
+      $("enter").textContent = "Enter plaza as Guest";
+    })
+    .finally(() => {
+      $("enter").disabled = false;
     });
+}
 
-    // Save the account session
-    sessionStorage.setItem("cheeseAccountToken", result.token);
+/* Securely log out of Cheese Plaza */
+$("logoutAccount").onclick = async () => {
+  const token = sessionStorage.getItem("cheeseAccountToken");
 
-    // Use the registered account username
-    $("name").value = result.account.username;
-    $("enter").textContent = "Enter Plaza";
+  // Clear the account locally
+  sessionStorage.removeItem("cheeseAccountToken");
 
-    $("error").textContent =
-      "Login successful! Click Enter plaza as Guest to join.";
-  } catch (error) {
-    $("error").textContent = error.message;
+  // Restore Guest options
+  $("loginAccount").hidden = false;
+  $("registerAccount").hidden = false;
+  $("logoutAccount").hidden = true;
+
+  $("name").value = "Guest";
+  $("enter").textContent = "Enter plaza as Guest";
+  $("error").textContent = "You have logged out.";
+
+  // Invalidate the old session on the server
+  if (token) {
+    try {
+      await api("/account/logout", { token });
+    } catch (error) {
+      console.error("Server logout failed:", error);
+      $("error").textContent =
+        "Logged out locally, but the server session could not be ended.";
+    }
   }
 };
 
-/* Register a new Cheese Plaza account */
-$("registerAccount").onclick = async () => {
-  const username = prompt("Choose a Cheese Plaza username:");
-  if (username === null) return;
+/* Open the Cheese Plaza login form */
+$("loginAccount").onclick = () => {
+  $("accountError").textContent = "";
+  $("accountError").hidden = true;
+  $("welcomeContent").hidden = true;
+  $("accountForm").hidden = false;
+  $("accountFormTitle").textContent = "Login";
+  $("accountSubmit").textContent = "Login";
 
-  const password = prompt("Create a password (12–128 characters):");
-  if (password === null) return;
+  $("accountUsername").value = "";
+  $("accountPassword").value = "";
+  $("accountPassword").type = "password";
+  $("togglePassword").textContent = "👁";
+  $("togglePassword").title = "Show password";
+  $("togglePassword").setAttribute("aria-label", "Show password");
+  $("accountPassword").autocomplete = "current-password";
 
-  if (!/^[a-zA-Z0-9_]{3,20}$/.test(username.trim())) {
-    $("error").textContent =
-      "Username must be 3–20 characters: letters, numbers, or underscores.";
+  $("error").textContent = "";
+  $("accountUsername").focus();
+};
+
+/* Close the account form */
+$("accountCancel").onclick = () => {
+  $("accountError").textContent = "";
+  $("accountError").hidden = true;
+  $("welcomeContent").hidden = false;
+  $("accountForm").hidden = true;
+  $("accountPassword").value = "";
+  $("error").textContent = "";
+};
+
+/* Toggle password visibility using the eye icon */
+$("togglePassword").onclick = () => {
+  const passwordInput = $("accountPassword");
+  const isVisible = passwordInput.type === "text";
+
+  passwordInput.type = isVisible ? "password" : "text";
+
+  $("togglePassword").textContent = isVisible ? "👁" : "🙈";
+  $("togglePassword").title = isVisible ? "Show password" : "Hide password";
+
+  $("togglePassword").setAttribute(
+    "aria-label",
+    isVisible ? "Show password" : "Hide password",
+  );
+};
+
+/* Press Enter to submit Login or Register */
+["accountUsername", "accountPassword"].forEach((id) => {
+  $(id).addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      $("accountSubmit").click();
+    }
+  });
+});
+
+/* Submit Cheese Plaza login or registration */
+$("accountSubmit").onclick = async () => {
+  const username = $("accountUsername").value.trim();
+  const password = $("accountPassword").value;
+  const isRegistering = $("accountFormTitle").textContent === "Register";
+  $("accountError").hidden = false;
+  $("accountError").textContent = "";
+
+  if (!username || !password) {
+    $("accountError").textContent = "Please enter your username and password.";
     return;
   }
 
-  if (password.length < 12 || password.length > 128) {
-    $("error").textContent = "Password must be between 12 and 128 characters.";
-    return;
+  if (isRegistering) {
+    if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+      $("accountError").textContent =
+        "Username must be 3–20 letters, numbers, or underscores.";
+      return;
+    }
+
+    if (password.length < 12 || password.length > 128) {
+      $("accountError").textContent =
+        "Password must contain 12–128 characters.";
+      return;
+    }
   }
+
+  const submitButton = $("accountSubmit");
+  submitButton.disabled = true;
 
   try {
-    await api("/account/register", {
-      username: username.trim(),
-      password,
-    });
+    if (isRegistering) {
+      await api("/account/register", { username, password });
+    }
 
-    // Automatically log in after registration
+    // Log in after registration, or log in an existing account
     const result = await api("/account/login", {
-      username: username.trim(),
+      username,
       password,
     });
 
     sessionStorage.setItem("cheeseAccountToken", result.token);
+
+    /* Update account buttons after login */
+    $("loginAccount").hidden = true;
+    $("registerAccount").hidden = true;
+    $("logoutAccount").hidden = false;
+
     $("name").value = result.account.username;
     $("enter").textContent = "Enter Plaza";
 
-    $("error").textContent =
-      "Account created and logged in! Click Enter plaza as Guest to join.";
+    $("accountPassword").value = "";
+    $("accountForm").hidden = true;
+    $("welcomeContent").hidden = false;
+    $("accountError").textContent = "";
+    $("accountError").hidden = true;
+
+    $("accountError").textContent = isRegistering
+      ? "Account created! Click Enter Plaza to join."
+      : "Login successful! Click Enter Plaza to join.";
   } catch (error) {
-    $("error").textContent = error.message;
+    $("accountError").textContent = error.message;
+  } finally {
+    submitButton.disabled = false;
   }
 };
+
+/* Open the Cheese Plaza registration form */
+$("registerAccount").onclick = () => {
+  $("accountError").textContent = "";
+  $("accountError").hidden = true;
+  $("welcomeContent").hidden = true;
+  $("accountForm").hidden = false;
+  $("accountFormTitle").textContent = "Register";
+  $("accountSubmit").textContent = "Create Account";
+
+  $("accountUsername").value = "";
+  $("accountPassword").value = "";
+
+  $("accountPassword").type = "password";
+  $("togglePassword").textContent = "👁";
+  $("togglePassword").title = "Show password";
+  $("togglePassword").setAttribute("aria-label", "Show password");
+
+  $("accountPassword").autocomplete = "new-password";
+
+  $("error").textContent = "";
+  $("accountUsername").focus();
+};
+
+/* Restore the selected Cheese Plaza room */
+const selectedRoom = sessionStorage.getItem("cheeseSelectedRoom");
+
+if (selectedRoom) {
+  $("room").value = selectedRoom;
+}
 
 $("enter").onclick = async () => {
   try {
@@ -2018,3 +2167,167 @@ window.addEventListener("load", resizeCheesePlaza);
 window.addEventListener("resize", resizeCheesePlaza);
 
 resizeCheesePlaza();
+
+/* Cheese Plaza Session menu */
+const roomButton = document.getElementById("roomButton");
+const roomPanel = document.getElementById("roomPanel");
+const roomCodeInput = document.getElementById("roomCodeInput");
+
+/* Show Create Session when the Room Code changes */
+const createRoomButton = document.getElementById("createRoomButton");
+
+/* Remember existing rooms to prevent duplicate creation */
+let existingRoomCodes = new Set(["PLAZA"]);
+
+/* Create and join the selected room */
+createRoomButton.onclick = () => {
+  $("roomSave").click();
+};
+
+roomCodeInput.addEventListener("input", () => {
+  const newRoom = roomCodeInput.value.trim().toUpperCase();
+  const currentRoom = session?.room || $("room").value;
+
+  createRoomButton.hidden =
+    !newRoom ||
+    newRoom === currentRoom.toUpperCase() ||
+    existingRoomCodes.has(newRoom);
+
+  /* Show a message when the entered room already exists */
+  const roomCodeMessage = document.getElementById("roomCodeMessage");
+
+  roomCodeMessage.hidden =
+    !newRoom ||
+    newRoom === currentRoom.toUpperCase() ||
+    !existingRoomCodes.has(newRoom);
+});
+
+roomButton.onclick = async () => {
+  roomCodeInput.value = $("room").value;
+  createRoomButton.hidden = true;
+  roomPanel.hidden = false;
+  $("roomCodeMessage").hidden = true;
+
+  const list = $("activeRoomsList");
+  list.textContent = "Loading active rooms...";
+
+  try {
+    const result = await api("/rooms");
+
+    // Remember which rooms already exist
+    existingRoomCodes = new Set(result.rooms.map((room) => room.code));
+    // Recheck the entered room after refreshing the list
+    roomCodeInput.dispatchEvent(new Event("input"));
+
+    // Update Create Session button visibility
+    const enteredRoom = roomCodeInput.value.trim().toUpperCase();
+    const currentRoom = session?.room || $("room").value;
+
+    createRoomButton.hidden =
+      !enteredRoom ||
+      enteredRoom === currentRoom.toUpperCase() ||
+      existingRoomCodes.has(enteredRoom);
+
+    list.replaceChildren();
+
+    if (result.rooms.length === 0) {
+      list.textContent = "No active rooms.";
+      return;
+    }
+
+    for (const room of result.rooms) {
+      const item = document.createElement("div");
+      item.className = "activeRoomItem";
+
+      const info = document.createElement("span");
+      info.textContent = `${room.code} — ${room.players} player(s)`;
+
+      const joinButton = document.createElement("button");
+      joinButton.type = "button";
+
+      const isCurrentRoom = room.code === session?.room;
+
+      joinButton.textContent = isCurrentRoom ? "Current Room" : "Join";
+      joinButton.disabled = isCurrentRoom;
+
+      joinButton.onclick = () => {
+        roomCodeInput.value = room.code;
+        $("roomSave").click();
+      };
+
+      item.append(info, joinButton);
+      list.append(item);
+    }
+  } catch (error) {
+    list.textContent = "Unable to load active rooms.";
+    console.error(error);
+  }
+};
+
+/* Refresh the Active Rooms list */
+$("refreshRoomsButton").onclick = () => {
+  roomButton.click();
+};
+
+$("roomCancel").onclick = () => {
+  roomPanel.hidden = true;
+};
+
+/* Change Cheese Plaza room */
+$("roomSave").onclick = async () => {
+  const newRoom = $("roomCodeInput")
+    .value.trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9_-]/g, "")
+    .slice(0, 20);
+
+  if (!newRoom) {
+    alert("Please enter a valid room code.");
+    return;
+  }
+
+  /* Avoid rejoining the room we're already in */
+  if (session && newRoom === session.room.toUpperCase()) {
+    roomPanel.hidden = true;
+    return;
+  }
+
+  // Save the selected room for the next join
+  sessionStorage.setItem("cheeseSelectedRoom", newRoom);
+
+  // Leave the current room and close its live connection
+  if (session) {
+    if (stream) {
+      stream.close();
+      stream = null;
+    }
+
+    try {
+      await api("/leave");
+    } catch (error) {
+      console.error("Failed to leave previous room:", error);
+      return;
+    }
+  }
+  // Reset the previous multiplayer session
+  session = null;
+  players = [];
+  me = null;
+
+  // Set the new room code
+  $("room").value = newRoom;
+
+  // Close the Room window
+  roomPanel.hidden = true;
+
+  // Restore the Welcome screen if joining fails
+  $("join").style.display = "";
+
+  // Reuse the existing join functionality
+  await $("enter").onclick();
+
+  // Update the Active Rooms list after switching
+  if (session && session.room === newRoom) {
+    $("refreshRoomsButton").click();
+  }
+};
