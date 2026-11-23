@@ -426,6 +426,29 @@ if (savedAccountToken) {
 $("logoutAccount").onclick = async () => {
   const token = sessionStorage.getItem("cheeseAccountToken");
 
+  // Disconnect the active character from the multiplayer room
+  if (session) {
+    try {
+      await api("/leave");
+
+      if (stream) {
+        stream.close();
+        stream = null;
+      }
+
+      session = null;
+      players = [];
+      me = null;
+
+      $("join").style.display = "";
+      $("status").textContent = "Not connected";
+    } catch (error) {
+      console.error("Failed to leave room during logout:", error);
+      $("error").textContent = "Unable to disconnect from the room.";
+      return;
+    }
+  }
+
   // Clear the account locally
   sessionStorage.removeItem("cheeseAccountToken");
 
