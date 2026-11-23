@@ -73,6 +73,14 @@ function getAdminSession(token) {
   return session;
 }
 
+function hashPlayerPassword(password) {
+  const salt = crypto.randomBytes(16);
+
+  const hash = crypto.scryptSync(password, salt, 64);
+
+  return salt.toString("hex") + ":" + hash.toString("hex");
+}
+
 function verifyAdminPassword(password) {
   if (!ADMIN_PASSWORD_HASH || typeof password !== "string") {
     return false;
@@ -289,6 +297,64 @@ const server = http.createServer(async (req, res) => {
       if (raw.length > 16000) return send(res, { error: "Too large" }, 413);
     }
     const b = JSON.parse(raw);
+
+    // Register a permanent player account
+    if (u.pathname === "/account/register" && req.method === "POST") {
+      if (!db) {
+        return send(
+          res,
+          { error: "Account registration is unavailable." },
+          503,
+        );
+      }
+
+      const username = String(b.username || "").trim();
+      const password = b.password;
+
+      if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+        return send(
+          res,
+          {
+            error: "Username must be 3–20 letters, numbers, or underscores.",
+          },
+          400,
+        );
+      }
+
+      if (
+        typeof password !== "string" ||
+        password.length < 12 ||
+        password.length > 128
+      ) {
+        return send(
+          res,
+          {
+            error: "Password must be between 12 and 128 characters.",
+          },
+          400,
+        );
+      }
+
+      try {
+        const id = crypto.randomUUID();
+        const passwordHash = hashPlayerPassword(password);
+
+        await db.query(
+          `INSERT INTO player_accounts (id, username, password_hash)
+         VALUES ($1, $2, $3)`,
+          [id, username, passwordHash],
+        );
+
+        return send(res, { success: true });
+      } catch (error) {
+        if (error.code === "23505") {
+          return send(res, { error: "Username already taken." }, 409);
+        }
+
+        console.error("Account registration failed:", error);
+        return send(res, { error: "Registration failed." }, 500);
+      }
+    }
 
     // Private administrator authentication
     if (u.pathname === "/admin/login" && req.method === "POST") {
