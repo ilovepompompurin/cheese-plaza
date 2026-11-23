@@ -14,7 +14,8 @@
       </div>
       <span id="status">Not connected</span>
     </header>
-    <main>
+<div id="gameScaleArea">
+  <main id="gameLayout">
       <section class="panel">
         <div class="bar">
           <div>
@@ -41,6 +42,42 @@
 
         <div id="gameCanvasWrapper">
           <canvas id="world" width="1000" height="600"></canvas>
+              <div id="join">
+      <div class="panel">
+        <h1>Welcome to the plaza!</h1>
+        <p><small>Pick your look and join your friends.</small></p>
+        <label>Nickname<input id="name" maxlength="20" value="Guest" /></label
+        ><label>Room code<input id="room" maxlength="20" value="PLAZA" /></label
+        ><label
+          >Avatar color<input id="color" type="color" value="#e9ab76" /></label
+        ><button id="enter">Enter plaza</button><small id="error"></small>
+      </div>
+    </div>
+          
+<button id="toggleChat" type="button">💬 Chat</button>
+
+<div id="gameChatPanel" hidden>
+  <aside class="panel">
+    <h2>Room chat</h2>
+    <div id="chat" aria-live="polite"></div>
+
+    <form id="chatForm">
+      <input
+        id="message"
+        maxlength="200"
+        placeholder="Say something..."
+        autocomplete="off"
+      />
+      <button>Send</button>
+    </form>
+
+    <h2 style="margin-top: 25px; font-size: 17px">
+      Online friends <span id="count">0</span>
+    </h2>
+    <div id="players"></div>
+  </aside>
+</div>
+
               <button id="exitShop" type="button" hidden>🚪 Exit Shop</button>
 
           <!-- Shopping District zoom controls -->
@@ -70,35 +107,11 @@
           >
         </p>
       </section>
-      <aside class="panel">
-        <h2>Room chat</h2>
-        <div id="chat" aria-live="polite"></div>
-        <form id="chatForm">
-          <input
-            id="message"
-            maxlength="200"
-            placeholder="Say something…"
-            autocomplete="off"
-          /><button>Send</button>
-        </form>
-        <h2 style="margin-top: 25px; font-size: 17px">
-          Online friends <span id="count">0</span>
-        </h2>
-        <div id="players"></div>
-      </aside>
-    </main>
+     
+      </main>
+</div>
     <footer>No scores, no timer. Just good company and cheese.</footer>
-    <div id="join">
-      <div class="panel">
-        <h1>Welcome to the plaza!</h1>
-        <p><small>Pick your look and join your friends.</small></p>
-        <label>Nickname<input id="name" maxlength="20" value="Guest" /></label
-        ><label>Room code<input id="room" maxlength="20" value="PLAZA" /></label
-        ><label
-          >Avatar color<input id="color" type="color" value="#e9ab76" /></label
-        ><button id="enter">Enter plaza</button><small id="error"></small>
-      </div>
-    </div>
+
 
     <dialog id="closet">
       <button id="cancelStyle" type="button" class="profile-close">×</button>

@@ -1884,3 +1884,61 @@ canvas.addEventListener(
   },
   { passive: false },
 );
+
+/* Toggle in-game Room Chat */
+const toggleChatButton = document.getElementById("toggleChat");
+const gameChatPanel = document.getElementById("gameChatPanel");
+
+toggleChatButton.onclick = () => {
+  gameChatPanel.hidden = !gameChatPanel.hidden;
+
+  toggleChatButton.textContent = gameChatPanel.hidden
+    ? "💬 Chat"
+    : "✕ Close Chat";
+};
+
+/* Automatically scale the entire Cheese Plaza interface */
+function resizeCheesePlaza() {
+  const wrapper = document.getElementById("gameScaleArea");
+  const game = document.getElementById("gameLayout");
+
+  if (!wrapper || !game) return;
+
+  // Original game layout width
+  const baseWidth = 1200;
+
+  // Reset scaling before measuring
+  game.style.transform = "none";
+  game.style.transformOrigin = "top left";
+  game.style.margin = "0";
+
+  const baseHeight = game.scrollHeight;
+
+  // Available browser space
+  const availableWidth = wrapper.clientWidth;
+  const availableHeight = Math.max(
+    100,
+    window.innerHeight - wrapper.getBoundingClientRect().top - 20,
+  );
+
+  // Scale proportionally without stretching
+  const scale = Math.min(
+    1,
+    availableWidth / baseWidth,
+    availableHeight / baseHeight,
+  );
+
+  game.style.transform = `scale(${scale})`;
+
+  // Center the scaled interface
+  game.style.marginLeft = `${Math.max(0, (availableWidth - baseWidth * scale) / 2)}px`;
+
+  // Make wrapper match the visible scaled height
+  wrapper.style.height = `${baseHeight * scale}px`;
+}
+
+// Scale when the game loads and when the window changes
+window.addEventListener("load", resizeCheesePlaza);
+window.addEventListener("resize", resizeCheesePlaza);
+
+resizeCheesePlaza();

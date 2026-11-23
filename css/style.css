@@ -27,14 +27,14 @@
     small {
       color: #b4c6bd;
     }
-    main {
-      max-width: 1450px;
-      margin: auto;
-      padding: 24px;
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) 290px;
-      gap: 18px;
-    }
+main {
+  max-width: 1800px;
+  margin: auto;
+  padding: 24px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 290px;
+  gap: 18px;
+}
     .panel {
       background: #22312e;
       border: 1px solid #ffffff15;
@@ -1546,4 +1546,216 @@ box-sizing: border-box;
 
 #clothingItems .clothing-item:nth-child(n+7) {
   transform: translateY(-15%);
+}
+
+/* Cheese Plaza — In-game chat button */
+#toggleChat {
+  position: absolute;
+  top: 2%;
+  right: 2%;
+  z-index: 120;
+
+  background: #7653a0;
+  color: white;
+  border: 2px solid #c9a7eb;
+  border-radius: 12px;
+
+  padding: 1% 2%;
+  font-size: clamp(10px, 1.5cqw, 18px);
+  font-weight: bold;
+  cursor: pointer;
+}
+
+#toggleChat:hover {
+  background: #63438b;
+}
+
+/* Chat panel overlay */
+#gameChatPanel {
+  position: absolute;
+  top: 12%;
+  right: 2%;
+  width: 32%;
+  height: 75%;
+  z-index: 119;
+  box-sizing: border-box;
+}
+
+#gameChatPanel[hidden] {
+  display: none !important;
+}
+
+#gameChatPanel .panel {
+  height: 100%;
+  box-sizing: border-box;
+  overflow-y: auto;
+  background: rgba(35, 49, 46, 0.94);
+  border: 2px solid #c9a7eb;
+  border-radius: 14px;
+  padding: 12px;
+  line-height: normal;
+}
+
+/* Keep chat input inside the panel */
+#gameChatPanel #chatForm {
+  display: flex;
+  gap: 5px;
+}
+
+#gameChatPanel #message {
+  min-width: 0;
+  flex: 1;
+}
+
+/* Give the game the full available width */
+main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 1800px;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0 auto;
+}
+
+/* Keep game canvas proportional */
+#gameCanvasWrapper {
+  width: 100%;
+  position: relative;
+  container-type: inline-size;
+}
+
+#gameCanvasWrapper #world {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Responsive room chat */
+#gameChatPanel {
+  width: 30%;
+  min-width: 0;
+  height: 72%;
+  top: 12%;
+  right: 2%;
+}
+
+/* Scale chat text and controls with game width */
+#gameChatPanel .panel {
+  font-size: clamp(10px, 1.4cqw, 18px);
+  padding: 4%;
+}
+
+#gameChatPanel h2 {
+  font-size: clamp(12px, 2cqw, 24px);
+}
+
+#gameChatPanel #chat {
+  overflow-wrap: anywhere;
+}
+
+#gameChatPanel #chatForm {
+  flex-wrap: wrap;
+}
+
+/* Scale Cheese Plaza to fit the browser window */
+#gameCanvasWrapper {
+  width: 100%;
+  margin-inline: auto;
+  position: relative;
+  container-type: inline-size;
+}
+
+/* Preserve the original 1000 x 600 game proportions */
+#gameCanvasWrapper #world {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 5 / 3;
+}
+
+/* Keep Room Chat proportional to the game */
+#gameChatPanel {
+  width: 30%;
+  height: 72%;
+  top: 12%;
+  right: 2%;
+}
+
+/* Scale chat contents with the game window */
+#gameChatPanel .panel {
+  font-size: clamp(9px, 1.4cqw, 18px);
+  overflow-y: auto;
+}
+
+#gameChatPanel h2 {
+  font-size: clamp(11px, 2cqw, 22px);
+}
+
+/* Container for scaling the entire game */
+#gameScaleArea {
+  width: 100%;
+  position: relative;
+  overflow: visible;
+}
+
+/* Keep the game layout at a consistent base size */
+#gameLayout {
+  width: 1200px;
+  max-width: none;
+  margin: 0 auto;
+  box-sizing: border-box;
+  transform-origin: top center;
+}
+
+/* Welcome screen inside Cheese Plaza */
+#gameCanvasWrapper {
+  position: relative;
+}
+
+/* Keep Welcome screen inside the game canvas */
+#gameCanvasWrapper #join {
+  position: absolute;
+  inset: 0;
+  z-index: 150;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(20, 25, 30, 0.55);
+  box-sizing: border-box;
+  line-height: normal;
+}
+
+/* Welcome form */
+#gameCanvasWrapper #join .panel {
+  width: 65%;
+  max-width: 420px;
+  max-height: 95%;
+  overflow-y: auto;
+  box-sizing: border-box;
+
+  padding: 3%;
+  border-radius: 18px;
+}
+
+/* Responsive title and text */
+#gameCanvasWrapper #join h1 {
+  font-size: clamp(14px, 2.5cqw, 26px);
+}
+
+#gameCanvasWrapper #join label,
+#gameCanvasWrapper #join small {
+  font-size: clamp(10px, 1.5cqw, 16px);
+}
+
+/* Keep inputs inside the form */
+#gameCanvasWrapper #join input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Enter Plaza button */
+#gameCanvasWrapper #join #enter {
+  width: 100%;
 }
