@@ -384,6 +384,75 @@ async function api(path, data = {}) {
   if (!res.ok) throw Error(out.error);
   return out;
 }
+
+/* Login to an existing Cheese Plaza account */
+$("loginAccount").onclick = async () => {
+  const username = prompt("Enter your Cheese Plaza username:");
+  if (username === null) return;
+
+  const password = prompt("Enter your password:");
+  if (password === null) return;
+
+  try {
+    const result = await api("/account/login", {
+      username: username.trim(),
+      password,
+    });
+
+    // Save the account session
+    sessionStorage.setItem("cheeseAccountToken", result.token);
+
+    // Use the registered account username
+    $("name").value = result.account.username;
+
+    $("error").textContent =
+      "Login successful! Click Enter plaza as Guest to join.";
+  } catch (error) {
+    $("error").textContent = error.message;
+  }
+};
+
+/* Register a new Cheese Plaza account */
+$("registerAccount").onclick = async () => {
+  const username = prompt("Choose a Cheese Plaza username:");
+  if (username === null) return;
+
+  const password = prompt("Create a password (12–128 characters):");
+  if (password === null) return;
+
+  if (!/^[a-zA-Z0-9_]{3,20}$/.test(username.trim())) {
+    $("error").textContent =
+      "Username must be 3–20 characters: letters, numbers, or underscores.";
+    return;
+  }
+
+  if (password.length < 12 || password.length > 128) {
+    $("error").textContent = "Password must be between 12 and 128 characters.";
+    return;
+  }
+
+  try {
+    await api("/account/register", {
+      username: username.trim(),
+      password,
+    });
+
+    // Automatically log in after registration
+    const result = await api("/account/login", {
+      username: username.trim(),
+      password,
+    });
+
+    sessionStorage.setItem("cheeseAccountToken", result.token);
+    $("name").value = result.account.username;
+
+    $("error").textContent =
+      "Account created and logged in! Click Enter plaza as Guest to join.";
+  } catch (error) {
+    $("error").textContent = error.message;
+  }
+};
+
 $("enter").onclick = async () => {
   try {
     session = await api("/join", {
@@ -394,7 +463,11 @@ $("enter").onclick = async () => {
       face: saved.face || "face1",
       shirt: saved.shirt,
       home: layout,
+
+      // Link verified accounts to their multiplayer character
+      accountToken: sessionStorage.getItem("cheeseAccountToken") || null,
     });
+
     // Restore saved biography when joining Cheese Plaza
     const savedBiography = localStorage.getItem("cheeseProfileBio") || "";
 
@@ -1892,9 +1965,10 @@ const gameChatPanel = document.getElementById("gameChatPanel");
 toggleChatButton.onclick = () => {
   gameChatPanel.hidden = !gameChatPanel.hidden;
 
-  toggleChatButton.textContent = gameChatPanel.hidden
-    ? "💬 Chat"
-    : "✕ Close Chat";
+  toggleChatButton.textContent = "💬";
+  toggleChatButton.title = gameChatPanel.hidden
+    ? "Open Room Chat"
+    : "Close Room Chat";
 };
 
 /* Automatically scale the entire Cheese Plaza interface */

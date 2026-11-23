@@ -53,6 +53,27 @@ const ADMIN_USERNAME = process.env.CHEESE_ADMIN_USERNAME || "";
 const ADMIN_PASSWORD_HASH = process.env.CHEESE_ADMIN_PASSWORD_HASH || "";
 // Private administrator sessions
 const adminSessions = new Map();
+// Authenticated player sessions
+const playerSessions = new Map();
+
+function getPlayerSession(token) {
+  if (typeof token !== "string" || !token) {
+    return null;
+  }
+
+  const session = playerSessions.get(token);
+  if (!session) return null;
+
+  // Player sessions expire after 24 hours
+  const maxAge = 24 * 60 * 60 * 1000;
+
+  if (Date.now() - session.createdAt > maxAge) {
+    playerSessions.delete(token);
+    return null;
+  }
+
+  return session;
+}
 
 function getAdminSession(token) {
   if (typeof token !== "string" || !token) {
@@ -410,8 +431,18 @@ const server = http.createServer(async (req, res) => {
           return send(res, { error: "Invalid credentials." }, 401);
         }
 
+        // Create a secure session for this player
+        const token = crypto.randomBytes(32).toString("hex");
+
+        playerSessions.set(token, {
+          accountId: account.id,
+          username: account.username,
+          createdAt: Date.now(),
+        });
+
         return send(res, {
           success: true,
+          token,
           account: {
             id: account.id,
             username: account.username,
@@ -474,9 +505,14 @@ const server = http.createServer(async (req, res) => {
         rooms.set(room, r);
       }
       if (r.players.size >= 40) return send(res, { error: "Room full" }, 409);
+
+      // Identify a player using their authenticated account session
+      const accountSession = getPlayerSession(b.accountToken);
+      const accountId = accountSession?.accountId ?? null;
+
       const id = crypto.randomUUID();
       // Temporary account identifier (not yet authenticated)
-      const accountId = null;
+
       const color = /^#[0-9a-f]{6}$/i.test(b.color) ? b.color : "#e9ab76";
       r.players.set(id, {
         id,

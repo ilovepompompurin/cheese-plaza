@@ -1774,3 +1774,94 @@ main {
   z-index: 11;
 }
 
+
+/* Welcome screen — Guest button */
+#gameCanvasWrapper #join #enter {
+  display: block;
+  width: 100%;
+  padding: 12px 16px;
+
+  background: #edd184;
+  color: #201c15;
+
+  border: none;
+  border-radius: 10px;
+
+  font-size: 15px;
+  font-weight: bold;
+  text-align: center;
+  cursor: pointer;
+
+  margin-bottom: 10px;
+}
+
+#gameCanvasWrapper #join #enter:hover {
+  background: #f5dc99;
+}
+
+/* Place Room Chat beside the emotes */
+#emoteChatRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+#emoteChatRow #emotes {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Match the existing emote buttons */
+#emoteChatRow #toggleChat {
+  position: static;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 56px;
+  height: 44px;
+  padding: 0;
+
+  background: #35443e;
+  color: white;
+  border: 1px solid #526159;
+  border-radius: 10px;
+
+  font-size: 23px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+#emoteChatRow #toggleChat:hover {
+  background: #465a50;
+}
+/* Align Chat button with the emote buttons */
+#emoteChatRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#emoteChatRow #emotes {
+  margin: 0;
+}
+
+#emoteChatRow #toggleChat {
+  align-self: center;
+}
+/* Room Chat first, emotes second */
+#emoteChatRow #toggleChat {
+  order: -1;
+}
+
+#emoteChatRow #emotes {
+  order: 1;
+}
+
+/* Position Room Chat on the left side of the map */
+#gameChatPanel {
+  left: 2%;
+  right: auto;
+}
