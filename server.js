@@ -1,7 +1,89 @@
 const http = require("http"),
   fs = require("fs"),
   crypto = require("crypto");
+const { Pool } = require("pg");
+// PostgreSQL database connection
+const db = process.env.DATABASE_URL
+  ? new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl:
+        process.env.NODE_ENV === "production"
+          ? { rejectUnauthorized: false }
+          : undefined,
+    })
+  : null;
+// Test the PostgreSQL connection when the server starts
+if (db) {
+  db.query("SELECT NOW()")
+    .then(() => {
+      console.log("Cheese Plaza database: CONNECTED");
+    })
+    .catch((error) => {
+      console.error("Cheese Plaza database connection failed:", error.message);
+    });
+}
+
+// Private administrator configuration
+const ADMIN_USERNAME = process.env.CHEESE_ADMIN_USERNAME || "";
+const ADMIN_PASSWORD_HASH = process.env.CHEESE_ADMIN_PASSWORD_HASH || "";
+// Private administrator sessions
+const adminSessions = new Map();
+
+function getAdminSession(token) {
+  if (typeof token !== "string" || !token) {
+    return null;
+  }
+
+  const session = adminSessions.get(token);
+  if (!session) return null;
+
+  // Admin sessions expire after 8 hours
+  const maxAge = 8 * 60 * 60 * 1000;
+
+  if (Date.now() - session.createdAt > maxAge) {
+    adminSessions.delete(token);
+    return null;
+  }
+
+  return session;
+}
+
+function verifyAdminPassword(password) {
+  if (!ADMIN_PASSWORD_HASH || typeof password !== "string") {
+    return false;
+  }
+
+  const [saltHex, expectedHex] = ADMIN_PASSWORD_HASH.split(":");
+
+  if (
+    !saltHex ||
+    !expectedHex ||
+    !/^[0-9a-f]{32}$/i.test(saltHex) ||
+    !/^[0-9a-f]{128}$/i.test(expectedHex)
+  ) {
+    return false;
+  }
+
+  const actual = crypto.scryptSync(password, Buffer.from(saltHex, "hex"), 64);
+
+  return crypto.timingSafeEqual(actual, Buffer.from(expectedHex, "hex"));
+}
+
 const rooms = new Map();
+
+/* Server-side Cheese currency */
+const playerCheese = new Map();
+
+function getPlayerCheese(playerId) {
+  return playerCheese.get(playerId) ?? 200;
+}
+
+function setPlayerCheese(playerId, amount) {
+  const balance = Math.max(0, Math.floor(amount));
+  playerCheese.set(playerId, balance);
+  return balance;
+}
+
 const valid = (v, a, d) => (a.includes(v) ? v : d);
 const color = (v, d) => (/^#[0-9a-f]{6}$/i.test(v) ? v : d);
 const items = [
@@ -182,6 +264,42 @@ const server = http.createServer(async (req, res) => {
       if (raw.length > 16000) return send(res, { error: "Too large" }, 413);
     }
     const b = JSON.parse(raw);
+
+    // Private administrator authentication
+    if (u.pathname === "/admin/login" && req.method === "POST") {
+      const validUsername =
+        typeof b.username === "string" &&
+        b.username === ADMIN_USERNAME &&
+        ADMIN_USERNAME.length > 0;
+
+      const validPassword = verifyAdminPassword(b.password);
+
+      if (!validUsername || !validPassword) {
+        return send(res, { error: "Invalid credentials" }, 401);
+      }
+
+      // Generate a private, unpredictable admin token
+      const token = crypto.randomBytes(32).toString("hex");
+
+      adminSessions.set(token, {
+        username: ADMIN_USERNAME,
+        createdAt: Date.now(),
+      });
+
+      return send(res, { token });
+    }
+    // Check administrator authentication
+    if (u.pathname === "/admin/status" && req.method === "POST") {
+      const admin = getAdminSession(b.token);
+
+      if (!admin) {
+        return send(res, { authenticated: false }, 401);
+      }
+
+      return send(res, { authenticated: true });
+    }
+
+    // Regular player login
     if (u.pathname === "/join") {
       console.log("Player joining with outfit:", b.shirt);
       console.log("Server accepted outfit:", style(b).shirt);
@@ -198,9 +316,12 @@ const server = http.createServer(async (req, res) => {
       }
       if (r.players.size >= 40) return send(res, { error: "Room full" }, 409);
       const id = crypto.randomUUID();
+      // Temporary account identifier (not yet authenticated)
+      const accountId = null;
       const color = /^#[0-9a-f]{6}$/i.test(b.color) ? b.color : "#e9ab76";
       r.players.set(id, {
         id,
+        accountId,
         name:
           String(b.name || "Guest")
             .trim()

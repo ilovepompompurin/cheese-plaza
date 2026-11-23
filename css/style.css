@@ -1759,3 +1759,18 @@ main {
 #gameCanvasWrapper #join #enter {
   width: 100%;
 }
+
+/* Keep clothing buttons above overlapping outfit images */
+#clothingItems .clothing-item {
+  position: relative;
+}
+
+#clothingItems .clothing-item:hover {
+  z-index: 10;
+}
+
+#clothingItems .clothing-item button {
+  position: relative;
+  z-index: 11;
+}
+
