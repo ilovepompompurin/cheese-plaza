@@ -404,6 +404,7 @@ $("loginAccount").onclick = async () => {
 
     // Use the registered account username
     $("name").value = result.account.username;
+    $("enter").textContent = "Enter Plaza";
 
     $("error").textContent =
       "Login successful! Click Enter plaza as Guest to join.";
@@ -445,6 +446,7 @@ $("registerAccount").onclick = async () => {
 
     sessionStorage.setItem("cheeseAccountToken", result.token);
     $("name").value = result.account.username;
+    $("enter").textContent = "Enter Plaza";
 
     $("error").textContent =
       "Account created and logged in! Click Enter plaza as Guest to join.";
