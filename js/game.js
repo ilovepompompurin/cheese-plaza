@@ -371,6 +371,79 @@ function persist() {
   } catch {}
 }
 const q = new URLSearchParams(location.search);
+
+/* Open the password reset form when arriving from an email link */
+const passwordResetToken = q.get("resetToken");
+
+/* Remove the reset token from the address bar immediately */
+if (passwordResetToken) {
+  const cleanUrl = new URL(window.location.href);
+  cleanUrl.searchParams.delete("resetToken");
+
+  window.history.replaceState(
+    null,
+    "",
+    cleanUrl.pathname + cleanUrl.search + cleanUrl.hash,
+  );
+}
+
+if (passwordResetToken) {
+  // Hide the normal Welcome and account screens
+  $("welcomeContent").hidden = true;
+  $("accountForm").hidden = true;
+  $("passwordRecoveryForm").hidden = true;
+
+  // Show the Create New Password screen
+  $("newPasswordForm").hidden = false;
+}
+
+/* Submit a new password using a recovery token */
+$("saveNewPassword").onclick = async () => {
+  const password = $("newPassword").value;
+  const confirmation = $("confirmNewPassword").value;
+  const message = $("newPasswordMessage");
+  const button = $("saveNewPassword");
+
+  message.hidden = false;
+  message.textContent = "";
+
+  if (password.length < 12 || password.length > 128) {
+    message.textContent = "Password must contain 12–128 characters.";
+    return;
+  }
+
+  if (password !== confirmation) {
+    message.textContent = "Passwords do not match.";
+    return;
+  }
+
+  if (!passwordResetToken) {
+    message.textContent = "Missing password reset link.";
+    return;
+  }
+
+  button.disabled = true;
+
+  try {
+    await api("/account/reset-password", {
+      token: passwordResetToken,
+      password,
+    });
+
+    $("newPassword").value = "";
+    $("confirmNewPassword").value = "";
+
+    // Remove the reset token from the address bar
+    history.replaceState(null, "", location.pathname);
+
+    message.textContent = "Password updated successfully! You can now log in.";
+  } catch (error) {
+    message.textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
+};
+
 $("room").value = q.get("room") || "PLAZA";
 $("name").value = saved.name || "Guest";
 $("color").value = saved.color || "#e9ab76";
@@ -473,13 +546,63 @@ $("logoutAccount").onclick = async () => {
   }
 };
 
+/* Request a Rat Society password reset email */
+$("sendResetLink").onclick = async () => {
+  const email = $("recoveryEmail").value.trim();
+  const message = $("recoveryMessage");
+  const button = $("sendResetLink");
+
+  message.hidden = false;
+  message.textContent = "";
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    message.textContent = "Please enter a valid email address.";
+    return;
+  }
+
+  button.disabled = true;
+
+  try {
+    const result = await api("/account/forgot-password", {
+      email,
+    });
+
+    message.textContent = result.message;
+  } catch (error) {
+    message.textContent =
+      "Unable to process your request. Please try again later.";
+  } finally {
+    button.disabled = false;
+  }
+};
+
+/* Open the password recovery window */
+$("forgotPasswordButton").onclick = () => {
+  $("accountForm").hidden = true;
+  $("passwordRecoveryForm").hidden = false;
+
+  $("recoveryEmail").value = "";
+  $("recoveryMessage").textContent = "";
+  $("recoveryMessage").hidden = true;
+
+  $("recoveryEmail").focus();
+};
+
+/* Return to the Login window */
+$("cancelRecovery").onclick = () => {
+  $("passwordRecoveryForm").hidden = true;
+  $("loginAccount").click();
+};
+
 /* Open the Cheese Plaza login form */
 $("loginAccount").onclick = () => {
+  $("accountEmailSection").hidden = true;
   $("accountError").textContent = "";
   $("accountError").hidden = true;
   $("welcomeContent").hidden = true;
   $("accountForm").hidden = false;
   $("accountFormTitle").textContent = "Login";
+  $("forgotPasswordButton").hidden = false;
   $("accountSubmit").textContent = "Login";
 
   $("accountUsername").value = "";
@@ -535,6 +658,9 @@ $("accountSubmit").onclick = async () => {
   const username = $("accountUsername").value.trim();
   const password = $("accountPassword").value;
   const isRegistering = $("accountFormTitle").textContent === "Register";
+
+  const email = $("accountEmail").value.trim().toLowerCase();
+
   const wasPlayingAsGuest = Boolean(session);
   $("accountError").hidden = false;
   $("accountError").textContent = "";
@@ -545,6 +671,13 @@ $("accountSubmit").onclick = async () => {
   }
 
   if (isRegistering) {
+    // Validate the registration email
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
+      $("accountError").textContent = "Please enter a valid email address.";
+      $("accountError").hidden = false;
+      return;
+    }
+
     if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
       $("accountError").textContent =
         "Username must be 3–20 letters, numbers, or underscores.";
@@ -563,7 +696,11 @@ $("accountSubmit").onclick = async () => {
 
   try {
     if (isRegistering) {
-      await api("/account/register", { username, password });
+      await api("/account/register", {
+        username,
+        email,
+        password,
+      });
     }
 
     // Log in after registration, or log in an existing account
@@ -620,6 +757,8 @@ $("accountSubmit").onclick = async () => {
 
 /* Open the Cheese Plaza registration form */
 $("registerAccount").onclick = () => {
+  $("forgotPasswordButton").hidden = true;
+  $("accountEmailSection").hidden = false;
   $("accountError").textContent = "";
   $("accountError").hidden = true;
   $("welcomeContent").hidden = true;

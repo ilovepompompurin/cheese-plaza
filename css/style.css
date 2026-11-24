@@ -2344,3 +2344,143 @@ border: none;
   background: #465a50;
 }
 
+
+/* Forgot Password text link */
+#forgotPasswordButton {
+  display: block;
+  width: fit-content;
+  margin: 10px 0 0 auto;
+  padding: 0;
+
+  background: transparent;
+  border: none;
+  box-shadow: none;
+
+  color: #e9d38c;
+  font-size: 13px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+#forgotPasswordButton:hover {
+  color: #fff1bd;
+  background: transparent;
+}
+
+#forgotPasswordButton[hidden] {
+  display: none !important;
+}
+
+/* Cheese Plaza password recovery form */
+#passwordRecoveryForm {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 14px;
+  color: white;
+}
+
+#passwordRecoveryForm[hidden] {
+  display: none !important;
+}
+
+#passwordRecoveryForm h3 {
+  margin: 0 0 20px;
+  text-align: center;
+  font-size: 20px;
+}
+
+#passwordRecoveryForm > p {
+  margin-bottom: 24px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+#passwordRecoveryForm label {
+  display: block;
+  margin-bottom: 8px;
+}
+
+#passwordRecoveryForm #recoveryEmail {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+
+.recoveryButtons {
+  display: flex;
+  gap: 10px;
+  margin-top: 40px;
+}
+
+.recoveryButtons button {
+  flex: 1;
+  min-width: 0;
+}
+
+#recoveryMessage {
+  margin-top: 14px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+#recoveryMessage[hidden] {
+  display: none !important;
+}
+
+/* Rat Society password reset form */
+#newPasswordForm {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 14px;
+  color: white;
+}
+
+#newPasswordForm[hidden] {
+  display: none !important;
+}
+
+#newPasswordForm h3 {
+  margin: 0 0 20px;
+  text-align: center;
+  font-size: 20px;
+}
+
+#newPasswordForm > p {
+  margin-bottom: 24px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+#newPasswordForm label {
+  display: block;
+  margin-top: 14px;
+  margin-bottom: 8px;
+}
+
+#newPasswordForm input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+
+#saveNewPassword {
+  display: block;
+  width: 100%;
+  margin-top: 32px;
+}
+
+#newPasswordMessage {
+  margin-top: 14px;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  text-align: center;
+}
+
+#newPasswordMessage[hidden] {
+  display: none !important;
+}

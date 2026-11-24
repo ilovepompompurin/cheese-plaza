@@ -168,6 +168,67 @@
 </div> <!-- End welcomeContent -->
 <!-- Cheese Plaza account login and registration form -->
 
+<!-- Rat Society: Set a new password -->
+<div id="newPasswordForm" hidden>
+  <h3>Create New Password</h3>
+
+  <p>Enter a new password for your Rat Society account.</p>
+
+  <label for="newPassword">New Password</label>
+  <input
+    id="newPassword"
+    type="password"
+    autocomplete="new-password"
+    minlength="12"
+    maxlength="128"
+  />
+
+  <label for="confirmNewPassword">Confirm New Password</label>
+  <input
+    id="confirmNewPassword"
+    type="password"
+    autocomplete="new-password"
+    minlength="12"
+    maxlength="128"
+  />
+
+  <p id="newPasswordMessage" role="status" hidden></p>
+
+  <button id="saveNewPassword" type="button">
+    Reset Password
+  </button>
+</div>
+
+<!-- Cheese Plaza password recovery form -->
+<div id="passwordRecoveryForm" hidden>
+  <h3>Reset Password</h3>
+
+  <p>
+    Enter your registered email address to receive
+    a password reset link.
+  </p>
+
+  <label for="recoveryEmail">Email Address</label>
+  <input
+    id="recoveryEmail"
+    type="email"
+    autocomplete="email"
+    maxlength="254"
+    placeholder="you@example.com"
+  />
+
+  <p id="recoveryMessage" role="status" hidden></p>
+
+  <div class="recoveryButtons">
+    <button id="sendResetLink" type="button">
+      Send Reset Link
+    </button>
+    <button id="cancelRecovery" type="button">
+      Back to Login
+    </button>
+  </div>
+</div>
+
 <div id="accountForm" hidden>
   <h3 id="accountFormTitle">Login</h3>
 
@@ -181,6 +242,18 @@
     />
   </label>
 
+
+<!-- Email required only when registering -->
+<div id="accountEmailSection" hidden>
+  <label for="accountEmail">Email</label>
+  <input
+    id="accountEmail"
+    type="email"
+    autocomplete="email"
+    maxlength="254"
+    placeholder="you@example.com"
+  />
+</div>
 
 <label for="accountPassword">Password</label>
 
@@ -200,6 +273,12 @@
     title="Show password"
   >👁</button>
 </div>
+
+<!-- Password recovery option -->
+<button id="forgotPasswordButton" type="button" hidden>
+  Forgot Password?
+</button>
+
 
 <!-- Login and registration error messages -->
 <p id="accountError" role="alert" hidden></p>

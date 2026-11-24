@@ -1,6 +1,64 @@
 const http = require("http"),
   fs = require("fs"),
   crypto = require("crypto");
+
+/* Send transactional emails using Resend */
+async function sendRatSocietyEmail(to, subject, text) {
+  const apiKey = process.env.RESEND_API_KEY;
+
+  // Restrict password recovery emails during testing
+  const allowedEmail = process.env.RESEND_TEST_EMAIL?.trim().toLowerCase();
+
+  if (!allowedEmail || to.trim().toLowerCase() !== allowedEmail) {
+    throw new Error(
+      "Password recovery email is not enabled for this recipient.",
+    );
+  }
+
+  if (!apiKey) {
+    throw new Error("Resend API key is not configured.");
+  }
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: "Rat Society <onboarding@resend.dev>",
+      to: [to],
+      subject,
+      text,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Resend delivery failed: HTTP ${response.status}`);
+  }
+
+  return response.json();
+}
+
+/* Build a secure password reset link */
+function createPasswordResetLink(token) {
+  const gameUrl = "https://cheese-plaza.onrender.com";
+
+  const url = new URL(gameUrl);
+  url.searchParams.set("resetToken", token);
+
+  return url.toString();
+}
+
+/* Generate a secure password reset token */
+function generatePasswordResetToken() {
+  const token = crypto.randomBytes(32).toString("hex");
+
+  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+
+  return { token, tokenHash };
+}
+
 const { Pool } = require("pg");
 // PostgreSQL database connection
 const db = process.env.DATABASE_URL
@@ -23,6 +81,32 @@ async function initializeDatabase() {
       password_hash TEXT NOT NULL,
       cheese_balance INTEGER NOT NULL DEFAULT 200
         CHECK (cheese_balance >= 0),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  // Add email support to existing player accounts
+  await db.query(`
+    ALTER TABLE player_accounts
+    ADD COLUMN IF NOT EXISTS email VARCHAR(254)
+  `);
+
+  // Prevent multiple accounts from using the same email
+  await db.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS
+    player_accounts_email_unique
+    ON player_accounts (email)
+  `);
+
+  // Store secure, temporary password reset tokens
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id UUID PRIMARY KEY,
+      account_id UUID NOT NULL
+        REFERENCES player_accounts(id) ON DELETE CASCADE,
+      token_hash TEXT NOT NULL UNIQUE,
+      expires_at TIMESTAMPTZ NOT NULL,
+      used_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
@@ -55,6 +139,28 @@ const ADMIN_PASSWORD_HASH = process.env.CHEESE_ADMIN_PASSWORD_HASH || "";
 const adminSessions = new Map();
 // Authenticated player sessions
 const playerSessions = new Map();
+
+/* Limit password reset requests by IP address */
+const passwordResetAttempts = new Map();
+
+function allowPasswordResetRequest(ip) {
+  const now = Date.now();
+  const windowMs = 15 * 60 * 1000;
+  const maxAttempts = 5;
+
+  const attempts = (passwordResetAttempts.get(ip) || []).filter(
+    (time) => now - time < windowMs,
+  );
+
+  if (attempts.length >= maxAttempts) {
+    passwordResetAttempts.set(ip, attempts);
+    return false;
+  }
+
+  attempts.push(now);
+  passwordResetAttempts.set(ip, attempts);
+  return true;
+}
 
 function getPlayerSession(token) {
   if (typeof token !== "string" || !token) {
@@ -351,6 +457,11 @@ const server = http.createServer(async (req, res) => {
       }
 
       const username = String(b.username || "").trim();
+
+      const email = String(b.email || "")
+        .trim()
+        .toLowerCase();
+
       const password = b.password;
 
       if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
@@ -382,14 +493,18 @@ const server = http.createServer(async (req, res) => {
         const passwordHash = hashPlayerPassword(password);
 
         await db.query(
-          `INSERT INTO player_accounts (id, username, password_hash)
-         VALUES ($1, $2, $3)`,
-          [id, username, passwordHash],
+          `INSERT INTO player_accounts (id, username, email, password_hash)
+   VALUES ($1, $2, $3, $4)`,
+          [id, username, email, passwordHash],
         );
 
         return send(res, { success: true });
       } catch (error) {
         if (error.code === "23505") {
+          if (error.constraint === "player_accounts_email_unique") {
+            return send(res, { error: "Email already registered." }, 409);
+          }
+
           return send(res, { error: "Username already taken." }, 409);
         }
 
@@ -421,6 +536,225 @@ const server = http.createServer(async (req, res) => {
       });
     }
 
+    /* Reset a Rat Society account password */
+    if (u.pathname === "/account/reset-password" && req.method === "POST") {
+      // Keep password resets disabled outside testing mode
+      if (process.env.PASSWORD_RESET_TESTING !== "true") {
+        return send(
+          res,
+          {
+            error: "Password recovery is temporarily unavailable.",
+          },
+          503,
+        );
+      }
+
+      if (!db) {
+        return send(res, { error: "Password reset is unavailable." }, 503);
+      }
+
+      const token = b.token;
+      const newPassword = b.password;
+
+      if (
+        typeof token !== "string" ||
+        !/^[a-f0-9]{64}$/i.test(token) ||
+        typeof newPassword !== "string" ||
+        newPassword.length < 12 ||
+        newPassword.length > 128
+      ) {
+        return send(res, { error: "Invalid reset request." }, 400);
+      }
+
+      const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+
+      const client = await db.connect();
+
+      try {
+        await client.query("BEGIN");
+
+        // Lock the reset token to prevent simultaneous reuse
+        const result = await client.query(
+          `SELECT account_id
+       FROM password_reset_tokens
+       WHERE token_hash = $1
+         AND used_at IS NULL
+         AND expires_at > NOW()
+       FOR UPDATE`,
+          [tokenHash],
+        );
+
+        if (result.rows.length === 0) {
+          await client.query("ROLLBACK");
+          return send(
+            res,
+            {
+              error: "This reset link is invalid or expired.",
+            },
+            400,
+          );
+        }
+
+        const accountId = result.rows[0].account_id;
+        const passwordHash = hashPlayerPassword(newPassword);
+
+        await client.query(
+          `UPDATE player_accounts
+       SET password_hash = $1
+       WHERE id = $2`,
+          [passwordHash, accountId],
+        );
+
+        // Invalidate all outstanding reset links for this account
+        await client.query(
+          `UPDATE password_reset_tokens
+       SET used_at = NOW()
+       WHERE account_id = $1 AND used_at IS NULL`,
+          [accountId],
+        );
+
+        await client.query("COMMIT");
+
+        // Invalidate existing in-memory login sessions
+        for (const [sessionToken, playerSession] of playerSessions) {
+          if (playerSession.accountId === accountId) {
+            playerSessions.delete(sessionToken);
+          }
+        }
+
+        return send(res, {
+          success: true,
+          message: "Password updated. You can now log in.",
+        });
+      } catch (error) {
+        await client.query("ROLLBACK");
+        console.error("Password reset failed:", error);
+        return send(res, { error: "Password reset failed." }, 500);
+      } finally {
+        client.release();
+      }
+    }
+
+    /* Request a Cheese Plaza password reset */
+    if (u.pathname === "/account/forgot-password" && req.method === "POST") {
+      // Keep password recovery disabled until testing is enabled
+      if (process.env.PASSWORD_RESET_TESTING !== "true") {
+        return send(
+          res,
+          {
+            error: "Password recovery is temporarily unavailable.",
+          },
+          503,
+        );
+      }
+
+      // Standard response that does not reveal account existence
+      const resetRequestResponse = {
+        success: true,
+        message:
+          "If an account exists with that email, reset instructions will be sent.",
+      };
+
+      /* Identify requests without trusting user-supplied IP headers */
+      const clientIp = req.socket.remoteAddress || "unknown";
+
+      // Limit requests without revealing whether an account exists
+      if (!allowPasswordResetRequest(clientIp)) {
+        return send(res, resetRequestResponse);
+      }
+
+      const email = String(b.email || "")
+        .trim()
+        .toLowerCase();
+
+      if (!email || email.length > 254) {
+        return send(res, { error: "Please enter a valid email address." }, 400);
+      }
+      try {
+        // Look up the account associated with this email
+        if (db) {
+          const result = await db.query(
+            "SELECT id FROM player_accounts WHERE email = $1",
+            [email],
+          );
+
+          if (result.rows.length > 0) {
+            // Generate a secure token for the registered account
+
+            // Allow one password reset request every 5 minutes
+            const recentReset = await db.query(
+              `SELECT 1
+         FROM password_reset_tokens
+         WHERE account_id = $1
+           AND created_at > NOW() - INTERVAL '5 minutes'
+         LIMIT 1`,
+              [result.rows[0].id],
+            );
+
+            if (recentReset.rows.length > 0) {
+              return send(res, resetRequestResponse);
+            }
+
+            const { token, tokenHash } = generatePasswordResetToken();
+
+            // Store only the hash, with a 30-minute expiration
+            await db.query(
+              `INSERT INTO password_reset_tokens
+         (id, account_id, token_hash, expires_at)
+         VALUES ($1, $2, $3, NOW() + INTERVAL '30 minutes')`,
+              [crypto.randomUUID(), result.rows[0].id, tokenHash],
+            );
+
+            // Build the secure password reset link
+            const resetLink = createPasswordResetLink(token);
+
+            // Email the reset link to the registered account
+
+            try {
+              await sendRatSocietyEmail(
+                email,
+                "Reset your Rat Society password",
+                `Someone requested a password reset for your Rat Society account.
+
+Use this link to create a new password:
+
+${resetLink}
+
+This link expires in 30 minutes and can only be used once.
+
+If you did not request this, you can ignore this email.`,
+              );
+            } catch (error) {
+              // Remove the unused token if email delivery fails
+              try {
+                await db.query(
+                  "DELETE FROM password_reset_tokens WHERE token_hash = $1",
+                  [tokenHash],
+                );
+              } catch {
+                console.error("Failed to clean up undelivered reset token.");
+              }
+
+              // Never log the email address, token, or reset link
+              console.error("Password reset email delivery failed.");
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Password recovery database operation failed.");
+        return send(
+          res,
+          {
+            error: "Password recovery is temporarily unavailable.",
+          },
+          503,
+        );
+      }
+
+      // Do not reveal whether an email address is registered
+      return send(res, resetRequestResponse);
+    }
+
     // Authenticate a returning player
     if (u.pathname === "/account/login" && req.method === "POST") {
       if (!db) {
@@ -429,6 +763,11 @@ const server = http.createServer(async (req, res) => {
 
       const username = String(b.username || "").trim();
       const password = b.password;
+
+      /* Validate registration email */
+      if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return send(res, { error: "Please enter a valid email address." }, 400);
+      }
 
       if (
         typeof password !== "string" ||
