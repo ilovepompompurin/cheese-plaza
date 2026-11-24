@@ -973,6 +973,12 @@ If you did not request this, you can ignore this email.`,
     broadcast(r);
     send(res, { ok: true });
   } catch (e) {
+    console.error("Request failed:", {
+      path: u.pathname,
+      message: e.message,
+      code: e.code,
+    });
+
     send(res, { error: "Invalid request" }, 400);
   }
 });
