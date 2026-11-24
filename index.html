@@ -174,7 +174,9 @@
 
   <p>Enter a new password for your Rat Society account.</p>
 
-  <label for="newPassword">New Password</label>
+
+<label for="newPassword">New Password</label>
+<div class="passwordField">
   <input
     id="newPassword"
     type="password"
@@ -182,8 +184,16 @@
     minlength="12"
     maxlength="128"
   />
+  <button
+    id="toggleNewPassword"
+    type="button"
+    aria-label="Show new password"
+    title="Show password"
+  >👁</button>
+</div>
 
-  <label for="confirmNewPassword">Confirm New Password</label>
+<label for="confirmNewPassword">Confirm New Password</label>
+<div class="passwordField">
   <input
     id="confirmNewPassword"
     type="password"
@@ -191,6 +201,16 @@
     minlength="12"
     maxlength="128"
   />
+  <button
+    id="toggleConfirmPassword"
+    type="button"
+    aria-label="Show confirmation password"
+    title="Show password"
+  >👁</button>
+</div>
+
+
+
 
   <p id="newPasswordMessage" role="status" hidden></p>
 

@@ -372,6 +372,21 @@ function persist() {
 }
 const q = new URLSearchParams(location.search);
 
+/* Automatically open Login after a password reset */
+if (q.get("showLogin") === "1") {
+  $("loginAccount").click();
+
+  // Remove the parameter without reloading the page
+  const cleanUrl = new URL(window.location.href);
+  cleanUrl.searchParams.delete("showLogin");
+
+  window.history.replaceState(
+    null,
+    "",
+    cleanUrl.pathname + cleanUrl.search + cleanUrl.hash,
+  );
+}
+
 /* Open the password reset form when arriving from an email link */
 const passwordResetToken = q.get("resetToken");
 
@@ -396,6 +411,27 @@ if (passwordResetToken) {
   // Show the Create New Password screen
   $("newPasswordForm").hidden = false;
 }
+
+/* Toggle visibility for each password reset field */
+function setupPasswordToggle(buttonId, inputId) {
+  const button = $(buttonId);
+  const input = $(inputId);
+
+  button.onclick = () => {
+    const isVisible = input.type === "text";
+
+    input.type = isVisible ? "password" : "text";
+    button.textContent = isVisible ? "👁" : "🙈";
+    button.title = isVisible ? "Show password" : "Hide password";
+    button.setAttribute(
+      "aria-label",
+      isVisible ? "Show password" : "Hide password",
+    );
+  };
+}
+
+setupPasswordToggle("toggleNewPassword", "newPassword");
+setupPasswordToggle("toggleConfirmPassword", "confirmNewPassword");
 
 /* Submit a new password using a recovery token */
 $("saveNewPassword").onclick = async () => {
@@ -437,6 +473,12 @@ $("saveNewPassword").onclick = async () => {
     history.replaceState(null, "", location.pathname);
 
     message.textContent = "Password updated successfully! You can now log in.";
+
+    button.textContent = "Back to Login";
+
+    button.onclick = () => {
+      window.location.href = window.location.origin + "/?showLogin=1";
+    };
   } catch (error) {
     message.textContent = error.message;
   } finally {
