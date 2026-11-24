@@ -764,11 +764,6 @@ If you did not request this, you can ignore this email.`,
       const username = String(b.username || "").trim();
       const password = b.password;
 
-      /* Validate registration email */
-      if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        return send(res, { error: "Please enter a valid email address." }, 400);
-      }
-
       if (
         typeof password !== "string" ||
         !/^[a-zA-Z0-9_]{3,20}$/.test(username)
