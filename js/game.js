@@ -535,6 +535,7 @@ $("accountSubmit").onclick = async () => {
   const username = $("accountUsername").value.trim();
   const password = $("accountPassword").value;
   const isRegistering = $("accountFormTitle").textContent === "Register";
+  const wasPlayingAsGuest = Boolean(session);
   $("accountError").hidden = false;
   $("accountError").textContent = "";
 
@@ -571,6 +572,20 @@ $("accountSubmit").onclick = async () => {
       password,
     });
 
+    // Disconnect the Guest character before switching accounts
+    if (session) {
+      await api("/leave");
+
+      if (stream) {
+        stream.close();
+        stream = null;
+      }
+
+      session = null;
+      players = [];
+      me = null;
+    }
+
     sessionStorage.setItem("cheeseAccountToken", result.token);
 
     /* Update account buttons after login */
@@ -584,6 +599,12 @@ $("accountSubmit").onclick = async () => {
     $("accountPassword").value = "";
     $("accountForm").hidden = true;
     $("welcomeContent").hidden = false;
+
+    // Automatically rejoin if the player was already playing as a Guest
+    if (wasPlayingAsGuest) {
+      await $("enter").onclick();
+    }
+
     $("accountError").textContent = "";
     $("accountError").hidden = true;
 
@@ -2352,5 +2373,47 @@ $("roomSave").onclick = async () => {
   // Update the Active Rooms list after switching
   if (session && session.room === newRoom) {
     $("refreshRoomsButton").click();
+  }
+};
+
+/* Cheese Plaza Settings window */
+const settingsButton = document.getElementById("settingsButton");
+const settingsPanel = document.getElementById("settingsPanel");
+
+settingsButton.onclick = () => {
+  roomPanel.hidden = true;
+  settingsPanel.hidden = false;
+
+  const isLoggedIn = Boolean(sessionStorage.getItem("cheeseAccountToken"));
+
+  $("settingsAccountTitle").textContent = isLoggedIn
+    ? "Account"
+    : "Guest Account";
+
+  $("settingsAccountDescription").textContent = isLoggedIn
+    ? "Manage your Cheese Plaza account."
+    : "Log in to save your progress and access your account.";
+
+  $("settingsLogout").hidden = false;
+  $("settingsLogout").textContent = isLoggedIn ? "Log Out" : "Login";
+};
+
+$("settingsCancel").onclick = () => {
+  settingsPanel.hidden = true;
+};
+
+/* Handle Login or Logout from Settings */
+$("settingsLogout").onclick = async () => {
+  settingsPanel.hidden = true;
+
+  const isLoggedIn = Boolean(sessionStorage.getItem("cheeseAccountToken"));
+
+  if (isLoggedIn) {
+    // Registered player: securely log out
+    await $("logoutAccount").onclick();
+  } else {
+    // Guest player: open the existing Login window
+    $("join").style.display = "";
+    $("loginAccount").click();
   }
 };

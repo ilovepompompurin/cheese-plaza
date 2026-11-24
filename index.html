@@ -25,10 +25,33 @@
 
 
 <div id="roomInviteButtons">
+
 <button id="roomButton" type="button">Room</button>
   <button id="invite" type="button">Copy invite link</button>
 </div>
 
+
+<!-- Cheese Plaza Settings window -->
+<div id="settingsPanel" hidden>
+  <h3>⚙️ Settings</h3>
+
+
+<div class="settingsAccountSection">
+  <h4 id="settingsAccountTitle">Account</h4>
+  <p id="settingsAccountDescription">
+    Manage your Cheese Plaza account.
+  </p>
+
+
+    <button id="settingsLogout" type="button">
+      Log Out
+    </button>
+  </div>
+
+  <button id="settingsCancel" type="button">
+    Cancel
+  </button>
+</div>
 
 <!-- Session settings popup -->
 <div id="roomPanel" hidden>
@@ -98,6 +121,14 @@
         </div>
 
         <div id="gameCanvasWrapper">
+
+<button
+  id="settingsButton"
+  type="button"
+  title="Settings"
+  aria-label="Open Settings"
+>⚙️</button>
+
           <canvas id="world" width="1000" height="600"></canvas>
               <div id="join">
       <div class="panel">
