@@ -642,7 +642,6 @@ $("resendVerificationButton").onclick = async () => {
     message.textContent = result.message;
     message.classList.add("success");
     message.hidden = false;
-    message.classList.remove("success");
   } catch (error) {
     message.textContent =
       error.message || "Unable to resend verification email.";
