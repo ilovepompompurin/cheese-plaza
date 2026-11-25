@@ -134,6 +134,11 @@ async function initializeDatabase() {
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )
 `);
+  // Ensure existing verification tables have the used_at column
+  await db.query(`
+  ALTER TABLE email_verification_tokens
+  ADD COLUMN IF NOT EXISTS used_at TIMESTAMPTZ
+`);
   console.log("Cheese Plaza player accounts table: READY");
 }
 
