@@ -640,7 +640,9 @@ $("resendVerificationButton").onclick = async () => {
     });
 
     message.textContent = result.message;
+    message.classList.add("success");
     message.hidden = false;
+    message.classList.remove("success");
   } catch (error) {
     message.textContent =
       error.message || "Unable to resend verification email.";
@@ -729,6 +731,8 @@ $("togglePassword").onclick = () => {
 
 /* Submit Cheese Plaza login or registration */
 $("accountSubmit").onclick = async () => {
+  // Reset notification styling before each login or registration attempt
+  $("accountError").classList.remove("success");
   const username = $("accountUsername").value.trim();
   const password = $("accountPassword").value;
   const isRegistering = $("accountFormTitle").textContent === "Register";
@@ -779,7 +783,7 @@ $("accountSubmit").onclick = async () => {
       $("accountError").textContent =
         registrationResult.message ||
         "Account created! Please check your email to verify your account.";
-
+      $("accountError").classList.add("success");
       $("accountError").hidden = false;
 
       return;
