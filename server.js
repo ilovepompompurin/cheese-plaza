@@ -204,32 +204,7 @@ function allowPasswordResetRequest(ip) {
 /* Limit email verification requests to 3 per IP every 15 minutes */
 function allowEmailVerificationRequest(ip) {
   /* Limit verification resends to 3 requests per email every 15 minutes */
-  function allowEmailVerificationEmailRequest(email) {
-    const now = Date.now();
-    const windowMs = 15 * 60 * 1000;
-    const maxAttempts = 3;
 
-    const attempts = (emailVerificationEmailAttempts.get(email) || []).filter(
-      (time) => now - time < windowMs,
-    );
-
-    if (attempts.length >= maxAttempts) {
-      emailVerificationEmailAttempts.set(email, attempts);
-      return false;
-    }
-
-    attempts.push(now);
-    emailVerificationEmailAttempts.set(email, attempts);
-
-    // Clean up expired entries
-    for (const [key, times] of emailVerificationEmailAttempts) {
-      if (times.every((time) => now - time >= windowMs)) {
-        emailVerificationEmailAttempts.delete(key);
-      }
-    }
-
-    return true;
-  }
   const now = Date.now();
   const windowMs = 15 * 60 * 1000;
   const maxAttempts = 3;
@@ -257,7 +232,32 @@ function allowEmailVerificationRequest(ip) {
 
   return true;
 }
+function allowEmailVerificationEmailRequest(email) {
+  const now = Date.now();
+  const windowMs = 15 * 60 * 1000;
+  const maxAttempts = 3;
 
+  const attempts = (emailVerificationEmailAttempts.get(email) || []).filter(
+    (time) => now - time < windowMs,
+  );
+
+  if (attempts.length >= maxAttempts) {
+    emailVerificationEmailAttempts.set(email, attempts);
+    return false;
+  }
+
+  attempts.push(now);
+  emailVerificationEmailAttempts.set(email, attempts);
+
+  // Clean up expired entries
+  for (const [key, times] of emailVerificationEmailAttempts) {
+    if (times.every((time) => now - time >= windowMs)) {
+      emailVerificationEmailAttempts.delete(key);
+    }
+  }
+
+  return true;
+}
 function getPlayerSession(token) {
   if (typeof token !== "string" || !token) {
     return null;
