@@ -9,8 +9,12 @@
   <body>
     <header>
       <div>
-        <h1>🧀 Cheese Plaza</h1>
-        <small>A little place to hang out together.</small>
+<img
+  id="siteLogo"
+  src="/assets/rat-society-logo.png"
+  alt="Rat Society"
+>
+
       </div>
       <span id="status">Not connected</span>
     </header>
@@ -135,7 +139,7 @@
 
 <div id="welcomeContent">
 
-        <h1>Welcome to the plaza!</h1>
+        <h1>Welcome to Rat Society!</h1>
         <p><small>Pick your look and join your friends.</small></p>
        
 <label>
@@ -534,6 +538,26 @@
         This player hasn't written a biography yet.
       </p>
     </div>
+    <!-- Admin Currency Manager (soower only) -->
+<div id="adminCurrencyManager" hidden>
+  <h3>🧀 Admin Currency Manager</h3>
+
+  <label for="adminCheeseAmount">Cheese amount</label>
+  <input
+    id="adminCheeseAmount"
+    type="number"
+    min="1"
+    step="1"
+    placeholder="Enter amount"
+  >
+
+  <div class="profile-actions">
+    <button id="adminGiveCheese" type="button">+ Give Cheese</button>
+    <button id="adminTakeCheese" type="button">− Take Cheese</button>
+  </div>
+
+  <p id="adminCurrencyMessage" role="status"></p>
+</div>
 
   </div>
 

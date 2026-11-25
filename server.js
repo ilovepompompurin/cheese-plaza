@@ -281,6 +281,16 @@ function getPlayerSession(token) {
 
   return session;
 }
+// Currency management is reserved for the registered soower account
+function canManagePlayerCurrency(token) {
+  const session = getPlayerSession(token);
+
+  return (
+    session !== null &&
+    session.username === "soower" &&
+    session.accountId != null
+  );
+}
 
 function getAdminSession(token) {
   if (typeof token !== "string" || !token) {
@@ -437,6 +447,7 @@ function broadcast(r) {
     players: [...r.players.values()].map(
       ({
         id,
+        accountId,
         name,
         color,
         x,
@@ -450,6 +461,7 @@ function broadcast(r) {
         bio,
       }) => ({
         id,
+        isGuest: accountId == null,
         name,
         color,
         x,
@@ -907,7 +919,105 @@ If you didn't request this email, you can safely ignore it.
         username: accountSession.username,
       });
     }
+    // Temporary safety lock until currency management is fully tested
+    if (process.env.ENABLE_CURRENCY_MANAGER !== "true") {
+      return send(
+        res,
+        { error: "Currency management is not enabled yet." },
+        503,
+      );
+    }
+    // Admin currency management — registered accounts only
+    if (u.pathname === "/account/manage-cheese" && req.method === "POST") {
+      // Verify that the request comes from the authenticated soower account
+      if (!canManagePlayerCurrency(b.token)) {
+        return send(res, { error: "Not authorized." }, 403);
+      }
 
+      // Require database access
+      if (!db) {
+        return send(res, { error: "Database unavailable." }, 503);
+      }
+      // Validate the requested currency adjustment
+      const amount = b.amount;
+      const action = b.action;
+
+      if (
+        !Number.isSafeInteger(amount) ||
+        amount < 1 ||
+        amount > 1000000 ||
+        !["give", "take"].includes(action)
+      ) {
+        return send(res, { error: "Invalid currency adjustment." }, 400);
+      }
+
+      // Find the selected player securely on the server
+      let targetPlayer = null;
+
+      for (const room of rooms.values()) {
+        const player = room.players.get(b.targetPlayerId);
+
+        if (player) {
+          targetPlayer = player;
+          break;
+        }
+      }
+
+      // Only registered players can receive persistent balance changes
+      if (!targetPlayer?.accountId) {
+        return send(
+          res,
+          { error: "Target player is not online or is a guest." },
+          400,
+        );
+      }
+      // Calculate the balance adjustment
+      const change = action === "give" ? amount : -amount;
+
+      try {
+        // Update the balance atomically to prevent negative balances
+        const result = await db.query(
+          `UPDATE player_accounts
+   SET cheese_balance = cheese_balance + $1
+   WHERE id = $2
+     AND id <> $3
+     AND cheese_balance + $1 BETWEEN 0 AND 2147483647
+   RETURNING username, cheese_balance`,
+          [change, targetPlayer.accountId, getPlayerSession(b.token).accountId],
+        );
+
+        if (result.rows.length === 0) {
+          return send(
+            res,
+            {
+              error:
+                "Player not found, insufficient Cheese, or balance limit reached.",
+            },
+            400,
+          );
+        }
+
+        return send(res, {
+          success: true,
+          username: result.rows[0].username,
+          cheese_balance: result.rows[0].cheese_balance,
+        });
+      } catch (error) {
+        console.error("Admin currency update failed:", error);
+        return send(res, { error: "Currency update failed." }, 500);
+      }
+    }
+    // Check whether the current account can manage player currency
+    if (
+      u.pathname === "/account/currency-permission" &&
+      req.method === "POST"
+    ) {
+      const allowed = canManagePlayerCurrency(b.token);
+
+      return send(res, {
+        canManageCurrency: allowed,
+      });
+    }
     /* Reset a Rat Society account password */
     if (u.pathname === "/account/reset-password" && req.method === "POST") {
       // Keep password resets disabled outside testing mode

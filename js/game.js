@@ -344,6 +344,21 @@ let session = null,
   target = null,
   lastSend = 0,
   stream;
+// Spacebar jumping animation
+let jumpStartTime = -Infinity;
+const jumpDuration = 650; // Jump duration in milliseconds
+const jumpHeight = 45; // Maximum jump height
+
+function startJump() {
+  if (!session || currentShop === "clothing") return;
+
+  const now = performance.now();
+
+  // Prevent double jumping
+  if (now - jumpStartTime < jumpDuration) return;
+
+  jumpStartTime = now;
+}
 let area = "town",
   editing = false,
   selected = "🛋️";
@@ -671,7 +686,7 @@ $("cancelRecovery").onclick = () => {
 /* Open the Cheese Plaza login form */
 $("loginAccount").onclick = () => {
   $("accountEmailSection").hidden = true;
-  $("resendVerificationButton").hidden = false;
+  $("resendVerificationButton").hidden = true;
   $("accountError").textContent = "";
   $("accountError").hidden = true;
   $("welcomeContent").hidden = true;
@@ -844,6 +859,7 @@ $("accountSubmit").onclick = async () => {
 $("registerAccount").onclick = () => {
   $("forgotPasswordButton").hidden = true;
   $("accountEmailSection").hidden = false;
+  $("resendVerificationButton").hidden = false;
   $("accountError").textContent = "";
   $("accountError").hidden = true;
   $("welcomeContent").hidden = true;
@@ -996,10 +1012,15 @@ window.addEventListener("keydown", (e) => {
       "arrowdown",
       "arrowleft",
       "arrowright",
+      " ", // Spacebar — Jump
     ].includes(k)
   ) {
     e.preventDefault();
     keys.add(k);
+    // Trigger a jump when Spacebar is pressed
+    if (k === " " && !e.repeat) {
+      startJump();
+    }
     target = null;
   }
 });
@@ -1079,10 +1100,10 @@ canvas.onclick = (e) => {
 
         // Cheese Plaza theme
         background: "rgba(255, 250, 241, 0.65)",
-        color: "#7653a0",
+        color: "#76533a",
         textShadow:
           "0 1px 2px rgba(255, 255, 255, 0.95), 0 0 5px rgba(255, 255, 255, 0.8)",
-        border: "2px solid #c9a7eb",
+        border: "2px solid #d7a36f",
         borderRadius: "12px",
         fontWeight: "bold",
         textAlign: "center",
@@ -1105,8 +1126,8 @@ canvas.onclick = (e) => {
         width: "16px",
         height: "16px",
         background: "rgba(255, 250, 241, 0.85)",
-        borderTop: "2px solid #c9a7eb",
-        borderRight: "2px solid #c9a7eb",
+        borderTop: "2px solid #d7a36f",
+        borderRight: "2px solid #d7a36f",
         zIndex: "101",
       });
 
@@ -1248,7 +1269,7 @@ canvas.onclick = (e) => {
 
         for (const button of [buyButton, noButton]) {
           Object.assign(button.style, {
-            background: "#7653a0",
+            background: "#966746",
             color: "white",
             border: "none",
             borderRadius: "8px",
@@ -1291,6 +1312,13 @@ canvas.onclick = (e) => {
 
   if (clickedPlayer) {
     target = null;
+    // Remember which player's profile the admin is viewing
+    window.selectedCurrencyPlayerId = clickedPlayer.id;
+
+    // Keep admin controls hidden until permissions are verified
+    $("adminCurrencyManager").hidden = true;
+    $("adminCheeseAmount").value = "";
+    $("adminCurrencyMessage").textContent = "";
 
     // Display the selected player's name
     $("publicProfileName").textContent = clickedPlayer.name;
@@ -1300,6 +1328,29 @@ canvas.onclick = (e) => {
 
     // Open the public profile
     $("publicProfile").showModal();
+    // Check server-side currency management permissions
+    const adminCurrencyManager = $("adminCurrencyManager");
+    const selectedPlayerId = clickedPlayer.id;
+    const accountToken = sessionStorage.getItem("cheeseAccountToken");
+
+    if (accountToken && !clickedPlayer.isGuest) {
+      api("/account/currency-permission", {
+        token: accountToken,
+      })
+        .then((result) => {
+          // Only reveal controls if this profile is still selected
+          if (
+            result.canManageCurrency === true &&
+            window.selectedCurrencyPlayerId === selectedPlayerId &&
+            $("publicProfile").open
+          ) {
+            adminCurrencyManager.hidden = false;
+          }
+        })
+        .catch(() => {
+          adminCurrencyManager.hidden = true;
+        });
+    }
     previewPublicPlayer(clickedPlayer);
     return;
   }
@@ -1647,6 +1698,54 @@ function previewPublicPlayer(player) {
 $("closePublicProfile").onclick = () => {
   $("publicProfile").close();
 };
+// Admin Currency Manager — give or take Cheese
+async function adjustPlayerCheese(action) {
+  const amount = Number($("adminCheeseAmount").value);
+  const message = $("adminCurrencyMessage");
+  const token = sessionStorage.getItem("cheeseAccountToken");
+  const targetPlayerId = window.selectedCurrencyPlayerId;
+
+  if (!Number.isSafeInteger(amount) || amount < 1 || amount > 1000000) {
+    message.textContent = "Enter a whole number between 1 and 1,000,000.";
+    return;
+  }
+
+  if (!token || !targetPlayerId || $("adminCurrencyManager").hidden) {
+    message.textContent = "Currency management is unavailable.";
+    return;
+  }
+
+  const giveButton = $("adminGiveCheese");
+  const takeButton = $("adminTakeCheese");
+
+  giveButton.disabled = true;
+  takeButton.disabled = true;
+  message.textContent = "Updating Cheese balance...";
+
+  try {
+    const result = await api("/account/manage-cheese", {
+      token,
+      targetPlayerId,
+      targetUsername: $("publicProfileName").textContent,
+      action,
+      amount,
+    });
+
+    if (!result.success) {
+      throw new Error(result.error || "Currency update failed.");
+    }
+
+    message.textContent = `${result.username} now has ${result.cheese_balance} Cheese.`;
+  } catch (error) {
+    message.textContent = error.message || "Currency update failed.";
+  } finally {
+    giveButton.disabled = false;
+    takeButton.disabled = false;
+  }
+}
+
+$("adminGiveCheese").onclick = () => adjustPlayerCheese("give");
+$("adminTakeCheese").onclick = () => adjustPlayerCheese("take");
 
 /* Profile wardrobe navigation */
 let wardrobeCategory = "outfits";
@@ -2020,7 +2119,21 @@ function avatar(p) {
   // Calculate hopping animation
   const phase = ((now / 1000) * hopSpeed) % 1;
 
-  const hop = isMoving ? 4 * phase * (1 - phase) * hopHeight : 0;
+  const isJumping = performance.now() - jumpStartTime < jumpDuration;
+
+  const walkingHop =
+    isMoving && !(p.id === session?.id && isJumping)
+      ? 4 * phase * (1 - phase) * hopHeight
+      : 0;
+  // Animate the local player's jump using the existing hopping system
+  const jumpElapsed = now - jumpStartTime;
+  const jumpProgress = jumpElapsed / jumpDuration;
+
+  const jumpHop =
+    p.id === session?.id && jumpProgress >= 0 && jumpProgress < 1
+      ? 4 * jumpProgress * (1 - jumpProgress) * jumpHeight
+      : 0;
+  const hop = walkingHop + jumpHop;
 
   const squash = isMoving
     ? Math.pow(Math.abs(2 * phase - 1), 12) * squashAmount
@@ -2110,7 +2223,8 @@ function avatar(p) {
 
   // Hide player name tag inside Cane's Threads
   if (currentShop !== "clothing") {
-    label(p.name, p.x, p.y - height, "#28382c", 14);
+    const displayName = p.isGuest ? `[Guest] ${p.name}` : p.name;
+    label(displayName, p.x, p.y - height, "#28382c", 14);
   }
 
   // Draw player reactions
