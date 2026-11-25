@@ -919,16 +919,17 @@ If you didn't request this email, you can safely ignore it.
         username: accountSession.username,
       });
     }
-    // Temporary safety lock until currency management is fully tested
-    if (process.env.ENABLE_CURRENCY_MANAGER !== "true") {
-      return send(
-        res,
-        { error: "Currency management is not enabled yet." },
-        503,
-      );
-    }
+
     // Admin currency management — registered accounts only
     if (u.pathname === "/account/manage-cheese" && req.method === "POST") {
+      // Temporary safety lock until currency management is fully tested
+      if (process.env.ENABLE_CURRENCY_MANAGER !== "true") {
+        return send(
+          res,
+          { error: "Currency management is not enabled yet." },
+          503,
+        );
+      }
       // Verify that the request comes from the authenticated soower account
       if (!canManagePlayerCurrency(b.token)) {
         return send(res, { error: "Not authorized." }, 403);
