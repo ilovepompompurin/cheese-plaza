@@ -617,7 +617,38 @@ $("sendResetLink").onclick = async () => {
     button.disabled = false;
   }
 };
+/* Resend Rat Society email verification */
+$("resendVerificationButton").onclick = async () => {
+  const email = prompt(
+    "🐭🧀 Enter the email address for your Rat Society account:",
+  )?.trim();
+  const message = $("accountError");
+  if (email === undefined) return;
+  const button = $("resendVerificationButton");
 
+  if (!email) {
+    message.textContent = "Please enter your email address first.";
+    message.hidden = false;
+    return;
+  }
+
+  button.disabled = true;
+
+  try {
+    const result = await api("/account/resend-verification", {
+      email,
+    });
+
+    message.textContent = result.message;
+    message.hidden = false;
+  } catch (error) {
+    message.textContent =
+      error.message || "Unable to resend verification email.";
+    message.hidden = false;
+  } finally {
+    button.disabled = false;
+  }
+};
 /* Open the password recovery window */
 $("forgotPasswordButton").onclick = () => {
   $("accountForm").hidden = true;
@@ -639,6 +670,7 @@ $("cancelRecovery").onclick = () => {
 /* Open the Cheese Plaza login form */
 $("loginAccount").onclick = () => {
   $("accountEmailSection").hidden = true;
+  $("resendVerificationButton").hidden = false;
   $("accountError").textContent = "";
   $("accountError").hidden = true;
   $("welcomeContent").hidden = true;
@@ -738,11 +770,19 @@ $("accountSubmit").onclick = async () => {
 
   try {
     if (isRegistering) {
-      await api("/account/register", {
+      const registrationResult = await api("/account/register", {
         username,
         email,
         password,
       });
+
+      $("accountError").textContent =
+        registrationResult.message ||
+        "Account created! Please check your email to verify your account.";
+
+      $("accountError").hidden = false;
+
+      return;
     }
 
     // Log in after registration, or log in an existing account
@@ -2390,6 +2430,35 @@ function resizeCheesePlaza() {
 // Scale when the game loads and when the window changes
 window.addEventListener("load", resizeCheesePlaza);
 window.addEventListener("resize", resizeCheesePlaza);
+/* Handle Rat Society email verification links */
+window.addEventListener("load", async () => {
+  const url = new URL(window.location.href);
+  const verificationToken = url.searchParams.get("verifyEmail");
+
+  if (!verificationToken) return;
+
+  // Remove the sensitive token from the browser address bar
+  url.searchParams.delete("verifyEmail");
+  window.history.replaceState({}, "", url.toString());
+
+  try {
+    const result = await api("/account/verify-email", {
+      token: verificationToken,
+    });
+
+    alert(
+      "🐭🧀 " +
+        (result.message || "Email verified successfully! You can now log in."),
+    );
+  } catch (error) {
+    console.error("Email verification failed:", error.message);
+
+    alert(
+      "🐭 Email verification failed. " +
+        (error.message || "Your link may be invalid or expired."),
+    );
+  }
+});
 
 resizeCheesePlaza();
 

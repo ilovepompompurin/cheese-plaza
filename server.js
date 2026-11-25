@@ -6,13 +6,11 @@ const http = require("http"),
 async function sendRatSocietyEmail(to, subject, text) {
   const apiKey = process.env.RESEND_API_KEY;
 
-  // Restrict password recovery emails during testing
+  // Restrict all outgoing emails to the approved test recipient
   const allowedEmail = process.env.RESEND_TEST_EMAIL?.trim().toLowerCase();
 
   if (!allowedEmail || to.trim().toLowerCase() !== allowedEmail) {
-    throw new Error(
-      "Password recovery email is not enabled for this recipient.",
-    );
+    throw new Error("Email delivery is not enabled for this recipient.");
   }
 
   if (!apiKey) {
@@ -39,7 +37,15 @@ async function sendRatSocietyEmail(to, subject, text) {
 
   return response.json();
 }
+/* Build a Rat Society email verification link */
+function createEmailVerificationLink(token) {
+  const gameUrl = "https://cheese-plaza.onrender.com";
 
+  const url = new URL(gameUrl);
+  url.searchParams.set("verifyEmail", token);
+
+  return url.toString();
+}
 /* Build a secure password reset link */
 function createPasswordResetLink(token) {
   const gameUrl = "https://cheese-plaza.onrender.com";
@@ -110,7 +116,24 @@ async function initializeDatabase() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+  // Add email verification status to player accounts
+  await db.query(`
+  ALTER TABLE player_accounts
+  ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE
+`);
 
+  // Store secure email verification tokens
+  await db.query(`
+  CREATE TABLE IF NOT EXISTS email_verification_tokens (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    account_id UUID NOT NULL
+      REFERENCES player_accounts(id) ON DELETE CASCADE,
+    token_hash TEXT NOT NULL UNIQUE,
+    expires_at TIMESTAMPTZ NOT NULL,
+    used_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )
+`);
   console.log("Cheese Plaza player accounts table: READY");
 }
 
@@ -142,6 +165,23 @@ const playerSessions = new Map();
 
 /* Limit password reset requests by IP address */
 const passwordResetAttempts = new Map();
+/* Track email verification resend requests by IP address */
+const emailVerificationAttempts = new Map();
+/* Track verification resend requests by email address */
+const emailVerificationEmailAttempts = new Map();
+/* Identify clients behind Render's trusted proxy */
+function getRequestIp(req) {
+  if (process.env.RENDER_SERVICE_ID) {
+    const clientIp = req.headers["cf-connecting-ip"];
+    const net = require("node:net");
+
+    if (typeof clientIp === "string" && net.isIP(clientIp.trim()) !== 0) {
+      return clientIp.trim();
+    }
+  }
+
+  return req.socket.remoteAddress || "unknown";
+}
 
 function allowPasswordResetRequest(ip) {
   const now = Date.now();
@@ -159,6 +199,62 @@ function allowPasswordResetRequest(ip) {
 
   attempts.push(now);
   passwordResetAttempts.set(ip, attempts);
+  return true;
+}
+/* Limit email verification requests to 3 per IP every 15 minutes */
+function allowEmailVerificationRequest(ip) {
+  /* Limit verification resends to 3 requests per email every 15 minutes */
+  function allowEmailVerificationEmailRequest(email) {
+    const now = Date.now();
+    const windowMs = 15 * 60 * 1000;
+    const maxAttempts = 3;
+
+    const attempts = (emailVerificationEmailAttempts.get(email) || []).filter(
+      (time) => now - time < windowMs,
+    );
+
+    if (attempts.length >= maxAttempts) {
+      emailVerificationEmailAttempts.set(email, attempts);
+      return false;
+    }
+
+    attempts.push(now);
+    emailVerificationEmailAttempts.set(email, attempts);
+
+    // Clean up expired entries
+    for (const [key, times] of emailVerificationEmailAttempts) {
+      if (times.every((time) => now - time >= windowMs)) {
+        emailVerificationEmailAttempts.delete(key);
+      }
+    }
+
+    return true;
+  }
+  const now = Date.now();
+  const windowMs = 15 * 60 * 1000;
+  const maxAttempts = 3;
+
+  const attempts = (emailVerificationAttempts.get(ip) || []).filter(
+    (time) => now - time < windowMs,
+  );
+
+  if (attempts.length >= maxAttempts) {
+    emailVerificationAttempts.set(ip, attempts);
+    return false;
+  }
+
+  attempts.push(now);
+  emailVerificationAttempts.set(ip, attempts);
+
+  // Remove expired entries to keep memory usage bounded
+  if (emailVerificationAttempts.size > 1000) {
+    for (const [key, times] of emailVerificationAttempts) {
+      if (times.every((time) => now - time >= windowMs)) {
+        emailVerificationAttempts.delete(key);
+      }
+    }
+  }
+
   return true;
 }
 
@@ -487,19 +583,68 @@ const server = http.createServer(async (req, res) => {
           400,
         );
       }
-
+      const client = await db.connect();
       try {
+        await client.query("BEGIN");
         const id = crypto.randomUUID();
         const passwordHash = hashPlayerPassword(password);
 
-        await db.query(
+        const verificationToken = crypto.randomBytes(32).toString("hex");
+        const verificationTokenHash = crypto
+          .createHash("sha256")
+          .update(verificationToken)
+          .digest("hex");
+
+        const verificationExpiresAt = new Date(
+          Date.now() + 24 * 60 * 60 * 1000,
+        );
+
+        await client.query(
           `INSERT INTO player_accounts (id, username, email, password_hash)
    VALUES ($1, $2, $3, $4)`,
           [id, username, email, passwordHash],
         );
 
-        return send(res, { success: true });
+        await client.query(
+          `INSERT INTO email_verification_tokens
+   (account_id, token_hash, expires_at)
+   VALUES ($1, $2, $3)`,
+          [id, verificationTokenHash, verificationExpiresAt],
+        );
+        await client.query("COMMIT");
+        const verificationLink = createEmailVerificationLink(verificationToken);
+        try {
+          await sendRatSocietyEmail(
+            email,
+            "🐭 Verify your Rat Society email address",
+            `Welcome to Rat Society! 🧀
+
+Thanks for joining our little rat community!
+
+Please verify your email address by visiting this link:
+
+${verificationLink}
+
+This link expires in 24 hours.
+
+If you didn't create a Rat Society account, you can ignore this email.
+
+— The Rat Society Team 🐭`,
+          );
+        } catch (emailError) {
+          console.error("Registration verification email failed:", emailError);
+        }
+        return send(res, {
+          success: true,
+          emailVerificationRequired: true,
+          message: "Account created. Please verify your email address.",
+        });
       } catch (error) {
+        try {
+          await client.query("ROLLBACK");
+        } catch (rollbackError) {
+          console.error("Registration rollback failed:", rollbackError);
+        }
         if (error.code === "23505") {
           if (error.constraint === "player_accounts_email_unique") {
             return send(res, { error: "Email already registered." }, 409);
@@ -510,9 +655,231 @@ const server = http.createServer(async (req, res) => {
 
         console.error("Account registration failed:", error);
         return send(res, { error: "Registration failed." }, 500);
+      } finally {
+        client.release();
+      }
+    }
+    /* Resend a Rat Society email verification link */
+    if (
+      u.pathname === "/account/resend-verification" &&
+      req.method === "POST"
+    ) {
+      if (!db) {
+        return send(res, { error: "Database unavailable." }, 503);
+      }
+
+      const email = String(b.email ?? "")
+        .trim()
+        .toLowerCase();
+
+      if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return send(res, { error: "Please enter a valid email address." }, 400);
+      }
+      // Limit repeated email verification requests
+      const requestIp = getRequestIp(req);
+
+      if (!allowEmailVerificationRequest(requestIp)) {
+        return send(
+          res,
+          {
+            error:
+              "Too many verification requests. Please try again in 15 minutes.",
+          },
+          429,
+        );
+      }
+      // Also limit requests targeting the same email address
+      if (!allowEmailVerificationEmailRequest(email)) {
+        return send(
+          res,
+          {
+            error:
+              "Too many verification requests. Please try again in 15 minutes.",
+          },
+          429,
+        );
+      }
+      try {
+        const accountResult = await db.query(
+          `SELECT id, email_verified
+   FROM player_accounts
+   WHERE email = $1`,
+          [email],
+        );
+
+        const account = accountResult.rows[0];
+        // Use the same response for unknown and already-verified accounts
+        const genericResponse = {
+          success: true,
+          message:
+            "If this email belongs to an unverified Rat Society account, a verification link will be sent.",
+        };
+
+        if (!account || account.email_verified === true) {
+          return send(res, genericResponse);
+        }
+        // Generate a secure replacement email verification token
+        const verificationToken = crypto.randomBytes(32).toString("hex");
+
+        const verificationTokenHash = crypto
+          .createHash("sha256")
+          .update(verificationToken)
+          .digest("hex");
+
+        const verificationExpiresAt = new Date(
+          Date.now() + 24 * 60 * 60 * 1000,
+        );
+        const client = await db.connect();
+
+        try {
+          await client.query("BEGIN");
+          // Invalidate previous verification tokens for this account
+          await client.query(
+            `UPDATE email_verification_tokens
+   SET used_at = NOW()
+   WHERE account_id = $1
+     AND used_at IS NULL`,
+            [account.id],
+          );
+          // Store the replacement verification token
+          await client.query(
+            `INSERT INTO email_verification_tokens
+   (account_id, token_hash, expires_at)
+   VALUES ($1, $2, $3)`,
+            [account.id, verificationTokenHash, verificationExpiresAt],
+          );
+          await client.query("COMMIT");
+        } catch (transactionError) {
+          try {
+            await client.query("ROLLBACK");
+          } catch (rollbackError) {
+            console.error("Verification token rollback failed:", rollbackError);
+          }
+
+          throw transactionError;
+        } finally {
+          client.release();
+        }
+        // Create the replacement verification link
+        const verificationLink = createEmailVerificationLink(verificationToken);
+
+        try {
+          await sendRatSocietyEmail(
+            email,
+            "🐭 Verify your Rat Society email address",
+            `Hello, fellow rat! 🧀
+
+You requested another email verification link for Rat Society.
+
+Click or copy this link to verify your email address:
+
+${verificationLink}
+
+This link expires in 24 hours.
+
+If you didn't request this email, you can safely ignore it.
+
+— The Rat Society Team 🐭`,
+          );
+        } catch (emailError) {
+          console.error("Resend verification email failed:", emailError);
+        }
+        return send(res, genericResponse);
+      } catch (error) {
+        console.error("Resend verification request failed:", error);
+
+        return send(
+          res,
+          {
+            error: "Unable to process verification request. Please try again.",
+          },
+          500,
+        );
       }
     }
 
+    /* Verify a Rat Society account email address */
+    if (u.pathname === "/account/verify-email" && req.method === "POST") {
+      if (!db) {
+        return send(res, { error: "Database unavailable." }, 503);
+      }
+
+      const token = String(b?.token ?? "").trim();
+
+      if (!/^[a-f0-9]{64}$/i.test(token)) {
+        return send(
+          res,
+          {
+            error: "Invalid email verification token.",
+          },
+          400,
+        );
+      }
+
+      const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+      const client = await db.connect();
+
+      try {
+        await client.query("BEGIN");
+
+        const result = await client.query(
+          `SELECT account_id
+     FROM email_verification_tokens
+     WHERE token_hash = $1
+       AND used_at IS NULL
+       AND expires_at > NOW()
+     FOR UPDATE`,
+          [tokenHash],
+        );
+        if (result.rows.length === 0) {
+          await client.query("ROLLBACK");
+
+          return send(
+            res,
+            { error: "This verification link is invalid or expired." },
+            400,
+          );
+        }
+        const accountId = result.rows[0].account_id;
+
+        await client.query(
+          `UPDATE player_accounts
+   SET email_verified = TRUE
+   WHERE id = $1`,
+          [accountId],
+        );
+        // Mark all outstanding verification tokens for this account as used
+        await client.query(
+          `UPDATE email_verification_tokens
+   SET used_at = NOW()
+   WHERE account_id = $1
+     AND used_at IS NULL`,
+          [accountId],
+        );
+        await client.query("COMMIT");
+
+        return send(res, {
+          success: true,
+          message: "Email verified successfully! You can now log in.",
+        });
+      } catch (error) {
+        try {
+          await client.query("ROLLBACK");
+        } catch (rollbackError) {
+          console.error("Email verification rollback failed:", rollbackError);
+        }
+
+        console.error("Email verification failed:", error);
+
+        return send(
+          res,
+          { error: "Email verification failed. Please try again." },
+          500,
+        );
+      } finally {
+        client.release();
+      }
+    }
     /* Log out and invalidate an account session */
     if (u.pathname === "/account/logout" && req.method === "POST") {
       if (typeof b.token === "string" && b.token) {
@@ -773,9 +1140,9 @@ If you did not request this, you can ignore this email.`,
 
       try {
         const result = await db.query(
-          `SELECT id, username, password_hash, cheese_balance
-         FROM player_accounts
-         WHERE username = $1`,
+          `SELECT id, username, password_hash, cheese_balance, email_verified
+ FROM player_accounts
+ WHERE username = $1`,
           [username],
         );
 
@@ -787,7 +1154,17 @@ If you did not request this, you can ignore this email.`,
         ) {
           return send(res, { error: "Invalid credentials." }, 401);
         }
-
+        // Require email verification before allowing login
+        if (account.email_verified !== true) {
+          return send(
+            res,
+            {
+              error: "Please verify your email address before logging in.",
+              emailVerificationRequired: true,
+            },
+            403,
+          );
+        }
         // Create a secure session for this player
         const token = crypto.randomBytes(32).toString("hex");
 
