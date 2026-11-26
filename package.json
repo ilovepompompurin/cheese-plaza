@@ -20,6 +20,7 @@
   },
   "homepage": "https://github.com/ilovepompompurin/cheese-plaza#readme",
   "dependencies": {
+    "nodemailer": "^10.6.1",
     "pg": "^8.23.1"
   }
 }

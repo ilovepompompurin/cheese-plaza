@@ -1,45 +1,36 @@
 const http = require("http"),
   fs = require("fs"),
   crypto = require("crypto");
+const nodemailer = require("nodemailer");
 
 /* Send transactional emails using Resend */
 async function sendRatSocietyEmail(to, subject, text) {
-  const apiKey = process.env.RESEND_API_KEY;
+  const gmailUser = process.env.GMAIL_USER;
+  const gmailAppPassword = process.env.GMAIL_APP_PASSWORD;
 
-  // Restrict all outgoing emails to the approved test recipient
-  const allowedEmail = process.env.RESEND_TEST_EMAIL?.trim().toLowerCase();
-
-  if (!allowedEmail || to.trim().toLowerCase() !== allowedEmail) {
-    throw new Error("Email delivery is not enabled for this recipient.");
+  if (!gmailUser || !gmailAppPassword) {
+    throw new Error("Gmail SMTP is not configured.");
   }
 
-  if (!apiKey) {
-    throw new Error("Resend API key is not configured.");
-  }
-
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: gmailUser,
+      pass: gmailAppPassword,
     },
-    body: JSON.stringify({
-      from: "Rat Society <onboarding@resend.dev>",
-      to: [to],
-      subject,
-      text,
-    }),
   });
 
-  if (!response.ok) {
-    throw new Error(`Resend delivery failed: HTTP ${response.status}`);
-  }
-
-  return response.json();
+  return transporter.sendMail({
+    from: `"Rat Society" <${gmailUser}>`,
+    to,
+    subject,
+    text,
+  });
 }
 /* Build a Rat Society email verification link */
 function createEmailVerificationLink(token) {
-  const gameUrl = "https://cheese-plaza.onrender.com";
+  const gameUrl =
+    process.env.PUBLIC_GAME_URL || "https://cheese-plaza.onrender.com";
 
   const url = new URL(gameUrl);
   url.searchParams.set("verifyEmail", token);
